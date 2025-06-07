@@ -67,10 +67,11 @@ void OnStart()
       if(StringLen(OandaAccountID)>0 && StringLen(OandaApiToken)>0)
       {
          string url=StringFormat("https://api-fxtrade.oanda.com/v3/accounts/%s/summary",OandaAccountID);
-         uchar result[];
+         char  result[];
          string headers="Authorization: Bearer "+OandaApiToken+"\r\n";
          string res_headers;
-         int code=WebRequest("GET",url,headers,5000,NULL,0,result,res_headers);
+         char  data[];
+         int code=WebRequest("GET",url,headers,5000,data,result,res_headers);
          if(code==200)
          {
             string js=CharArrayToString(result);
@@ -122,10 +123,12 @@ void OnStart()
    double pipValue = tickVal * pipSize / tickSize;         // monetary value of 1 pip per lot
 
    //--- choose commission and step based on broker if defaults are unchanged
+   double commissionPerLot = CommissionPerLot;
+   double volumeStepLocal  = VolumeStep;
    if(BrokerMode == BROKER_OANDA)
    {
-      if(CommissionPerLot == 7.0) CommissionPerLot = 0.0;  // OANDA has no commission by default
-      if(VolumeStep == 0.01)      VolumeStep = 0.00001;    // units of 1
+      if(commissionPerLot == 7.0) commissionPerLot = 0.0;  // OANDA has no commission by default
+      if(volumeStepLocal == 0.01)  volumeStepLocal = 0.00001;    // units of 1
    }
 
    //--- calculate risk amount
@@ -139,15 +142,15 @@ void OnStart()
    }
 
    //--- lot size using direct formula
-   double lotSizeRaw = riskAmount / (StopLossPips * pipValue + CommissionPerLot);
-   double lotSize    = MathCeil(lotSizeRaw / VolumeStep) * VolumeStep;
+   double lotSizeRaw = riskAmount / (StopLossPips * pipValue + commissionPerLot);
+   double lotSize    = MathCeil(lotSizeRaw / volumeStepLocal) * volumeStepLocal;
 
    //--- round precision
-   int lotPrec = (int)MathRound(MathLog10(1.0 / VolumeStep));
+   int lotPrec = (int)MathRound(MathLog10(1.0 / volumeStepLocal));
    lotSize = NormalizeDouble(lotSize, lotPrec);
 
    //--- commission
-   double commission = lotSize * CommissionPerLot;
+   double commission = lotSize * commissionPerLot;
 
    //--- check margin requirement
    double marginNeeded = 0.0;
@@ -156,7 +159,7 @@ void OnStart()
       Print("Error: OrderCalcMargin failed with code ", GetLastError());
       return;
    }
-   double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
+   double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
    if(marginNeeded > freeMargin)
    {
       PrintFormat("Warning: not enough free margin (needed %.2f, available %.2f)", marginNeeded, freeMargin);
@@ -214,7 +217,7 @@ void OnStart()
       string action = isBuy ? "buy" : "sell";
       int qty       = (int)MathRound(lotSize * 100000.0);
       string json   = "{\n";
-      json += StringFormat(" \"symbol\": \"{{ticker}}\",\n");
+      json += " \"symbol\": \"{{ticker}}\",\n";
       json += StringFormat(" \"action\": \"%s\",\n", action);
       json += StringFormat(" \"quantity\": %d,\n", qty);
       json += StringFormat(" \"take_profit_price\": \"{{close}} %s %.3f\",\n", isBuy?"+":"-", tpPips * pipSize);
