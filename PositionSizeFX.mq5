@@ -67,10 +67,10 @@ void OnStart()
       if(StringLen(OandaAccountID)>0 && StringLen(OandaApiToken)>0)
       {
          string url=StringFormat("https://api-fxtrade.oanda.com/v3/accounts/%s/summary",OandaAccountID);
-         uchar result[];
+         char  result[];
          string headers="Authorization: Bearer "+OandaApiToken+"\r\n";
          string res_headers;
-         uchar data[];
+         char  data[];
          int code=WebRequest("GET",url,headers,5000,data,result,res_headers);
          if(code==200)
          {
