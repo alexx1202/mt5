@@ -13,7 +13,7 @@ input string usdxSymbol        = "USDX.a";     // Symbol used to compare correla
 input bool   ShowDebugMessages = true;         // Print progress information
 
 // Timeframes for analysis can be adjusted as needed.
-input ENUM_TIMEFRAMES timeframes[] =
+ENUM_TIMEFRAMES timeframes[] =
 {
     PERIOD_M1, PERIOD_M5, PERIOD_M15, PERIOD_M30,
     PERIOD_H1, PERIOD_H4, PERIOD_D1, PERIOD_W1, PERIOD_MN1
