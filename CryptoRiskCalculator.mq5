@@ -124,7 +124,7 @@ void OnStart()
    FileClose(fileHandle);
 
    //--- Launch the output file using full path
-   string fullPath = TerminalInfoString(TERMINAL_DATA_PATH) + "\MQL5\Files\" + fileNameOnly;
+   string fullPath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\" + fileNameOnly;
    int result = ShellExecuteW(0, "open", fullPath, NULL, NULL, 1);
    if(result <= 32)
       PrintFormat("Warning: Could not open output file. Error code %d", result);
