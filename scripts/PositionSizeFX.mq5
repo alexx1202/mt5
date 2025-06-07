@@ -28,14 +28,24 @@ enum ENUM_ORDER_SIDE
    ORDER_SELL = 1
 };
 
+enum ENUM_BALANCE_MODE
+{
+   BALANCE_PEPPERSTONE = 0,
+   BALANCE_OANDA       = 1
+};
+
 //--- Inputs
 input ENUM_RISK_MODE   RiskMode           = RISK_FIXED_PERCENT;
 input double           FixedRiskAmountAUD = 100.0;
 input double           RiskPercentage     = 1.0;
 input double           StopLossPips       = 20.0;
 input ENUM_BROKER_MODE BrokerMode         = BROKER_PEPPERSTONE;
+input ENUM_BALANCE_MODE BalanceMode       = BALANCE_PEPPERSTONE;
 input double           RewardRiskRatio    = 2.0;
 input ENUM_ORDER_SIDE  OrderSide          = ORDER_BUY;
+
+input double           PepperstoneBalance = 0.0; // manually set if BalanceMode = BALANCE_PEPPERSTONE
+input double           OandaBalance       = 0.0; // manually set if BalanceMode = BALANCE_OANDA
 
 //--- Extra adjustable parameters
 input double           CommissionPerLot   = 7.0;     // Commission for 1 lot (AUD)
@@ -49,6 +59,16 @@ void OnStart()
 {
    string symbol   = _Symbol;
    double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
+   if(BalanceMode == BALANCE_OANDA)
+   {
+      if(OandaBalance > 0)
+         balance = OandaBalance;
+   }
+   else // BALANCE_PEPPERSTONE
+   {
+      if(PepperstoneBalance > 0)
+         balance = PepperstoneBalance;
+   }
    if(balance <= 0)
    {
       Print("Error: invalid account balance");
