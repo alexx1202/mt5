@@ -28,14 +28,26 @@ enum ENUM_ORDER_SIDE
    ORDER_SELL = 1
 };
 
+enum ENUM_BALANCE_MODE
+{
+   BALANCE_PEPPERSTONE = 0,
+   BALANCE_OANDA       = 1
+};
+
 //--- Inputs
 input ENUM_RISK_MODE   RiskMode           = RISK_FIXED_PERCENT;
 input double           FixedRiskAmountAUD = 100.0;
 input double           RiskPercentage     = 1.0;
 input double           StopLossPips       = 20.0;
 input ENUM_BROKER_MODE BrokerMode         = BROKER_PEPPERSTONE;
+input ENUM_BALANCE_MODE BalanceMode       = BALANCE_PEPPERSTONE;
 input double           RewardRiskRatio    = 2.0;
 input ENUM_ORDER_SIDE  OrderSide          = ORDER_BUY;
+
+input double           PepperstoneBalance = 0.0; // manually set if BalanceMode = BALANCE_PEPPERSTONE
+input double           OandaBalance       = 0.0; // manually set if BalanceMode = BALANCE_OANDA
+input string           OandaAccountID     = "001-011-7821430-001"; // ID used to query OANDA balance
+input string           OandaApiToken      = "25becd000966ef6caa04a753972898fb-fb183afa2b32a7de59b2acdcee7f9b81"; // API token for OANDA REST requests
 
 //--- Extra adjustable parameters
 input double           CommissionPerLot   = 7.0;     // Commission for 1 lot (AUD)
@@ -49,6 +61,44 @@ void OnStart()
 {
    string symbol   = _Symbol;
    double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
+   if(BalanceMode == BALANCE_OANDA)
+   {
+      bool fetched=false;
+      if(StringLen(OandaAccountID)>0 && StringLen(OandaApiToken)>0)
+      {
+         string url=StringFormat("https://api-fxtrade.oanda.com/v3/accounts/%s/summary",OandaAccountID);
+         uchar result[];
+         string headers="Authorization: Bearer "+OandaApiToken+"\r\n";
+         string res_headers;
+         int code=WebRequest("GET",url,headers,5000,NULL,0,result,res_headers);
+         if(code==200)
+         {
+            string js=CharArrayToString(result);
+            int p=StringFind(js,"\"balance\":");
+            if(p>=0)
+            {
+               p+=10;
+               string tmp=StringSubstr(js,p);
+               int end=StringFind(tmp,"\"",0);
+               if(end>0)
+                  tmp=StringSubstr(tmp,0,end);
+               double bal=StringToDouble(tmp);
+               if(bal>0)
+               {
+                  balance=bal;
+                  fetched=true;
+               }
+            }
+         }
+      }
+      if(!fetched && OandaBalance>0)
+         balance=OandaBalance;
+   }
+   else // BALANCE_PEPPERSTONE
+   {
+      if(PepperstoneBalance > 0)
+         balance = PepperstoneBalance;
+   }
    if(balance <= 0)
    {
       Print("Error: invalid account balance");
