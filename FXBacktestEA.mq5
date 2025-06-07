@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|                      Brisbane-Time Aware EA                     |
+//|                      FXBacktestEA                               |
 //|  A simple example expert advisor showing time filtering logic.  |
 //|  It avoids trading during certain Brisbane hours and weekends.  |
 //|  This file demonstrates improvements suggested in a code review.|
