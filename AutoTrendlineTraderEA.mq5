@@ -49,13 +49,11 @@ int OnInit()
 // helper: calculate ATR stop loss points
 int CalcATRPoints()
   {
-   double atr = iATR(_Symbol,_Period,ATRPeriod,0);
-   if(atr<=0)
-     {
-      Print("Warning: ATR value invalid. Using default StopLossPoints.");
-      return((int)StopLossPoints);
-     }
-   return((int)MathRound(atr*ATRMultiplier/_Point));
+   double atr[];
+   if(CopyBuffer(iATR(_Symbol,_Period,ATRPeriod),0,0,1,atr)>0)
+      return((int)MathRound(atr[0]*ATRMultiplier/_Point));
+   Print("Warning: ATR value invalid. Using default StopLossPoints.");
+   return((int)StopLossPoints);
   }
 
 //+------------------------------------------------------------------+
@@ -187,7 +185,7 @@ void OnTick()
 
    if(!result)
      {
-      int code = trade.ResultRetcode();
+      uint code = trade.ResultRetcode();
       string msg = trade.ResultRetcodeDescription();
       if(code == 10027 && !warnedAuto)
         {
