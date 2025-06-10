@@ -54,6 +54,44 @@ input double           CommissionPerLot   = 7.0;     // Commission for 1 lot (AU
 input double           VolumeStep         = 0.01;    // Minimum lot step
 input double           MaxTPMultiple      = 10.0;    // Maximum TP multiple allowed
 
+//--- Determine leverage tier for Pepperstone symbols
+double GetPepperstoneLeverage(string symbol)
+  {
+     string sym = StringUpper(symbol);
+
+     // major currency pairs 30:1
+     if(StringFind(sym,"USD")>=0 &&
+        (StringFind(sym,"EUR")>=0 || StringFind(sym,"GBP")>=0 ||
+         StringFind(sym,"AUD")>=0 || StringFind(sym,"NZD")>=0 ||
+         StringFind(sym,"CAD")>=0 || StringFind(sym,"CHF")>=0 ||
+         StringFind(sym,"JPY")>=0))
+        return 30.0;
+
+     // other FX pairs 20:1
+     bool isFxPair = (StringLen(sym)==6 || StringLen(sym)==7);
+     if(isFxPair)
+        return 20.0;
+
+     // gold or major indices 20:1
+     if(StringFind(sym,"XAU")>=0 || StringFind(sym,"US500")>=0 ||
+        StringFind(sym,"NAS")>=0 || StringFind(sym,"UK")>=0 ||
+        StringFind(sym,"GER")>=0)
+        return 20.0;
+
+     // commodities excluding gold or minor indices 10:1
+     if(StringFind(sym,"XAG")>=0 || StringFind(sym,"WTI")>=0 ||
+        StringFind(sym,"BRENT")>=0)
+        return 10.0;
+
+     // cryptocurrency assets 2:1
+     if(StringFind(sym,"BTC")>=0 || StringFind(sym,"ETH")>=0 ||
+        StringFind(sym,"LTC")>=0 || StringFind(sym,"XRP")>=0)
+        return 2.0;
+
+     // shares or other assets 5:1
+     return 5.0;
+  }
+
 //+------------------------------------------------------------------+
 //| Script entry point                                               |
 //+------------------------------------------------------------------+
@@ -165,6 +203,16 @@ void OnStart()
       PrintFormat("Warning: not enough free margin (needed %.2f, available %.2f)", marginNeeded, freeMargin);
    }
 
+   //--- confirm using Pepperstone leverage tiers
+   double leverage         = GetPepperstoneLeverage(symbol);
+   double contractSize     = SymbolInfoDouble(symbol, SYMBOL_TRADE_CONTRACT_SIZE);
+   double notionalValue    = lotSize * contractSize * price;
+   double marginByLeverage = notionalValue / leverage;
+   if(marginByLeverage > freeMargin)
+   {
+      PrintFormat("Warning: Pepperstone leverage 1:%.0f requires %.2f margin but only %.2f is available", leverage, marginByLeverage, freeMargin);
+   }
+
    //--- TP calculation
    double tpPips       = StopLossPips * RewardRiskRatio;
    if(tpPips > StopLossPips * MaxTPMultiple)
@@ -196,6 +244,7 @@ void OnStart()
    out += StringFormat("Stop Loss Price: %.5f (%.1f pips)\n", slPrice, StopLossPips);
    out += StringFormat("Take Profit Price: %.5f (%.1f pips | RR=1:%.2f)\n", tpPrice, tpPips, RewardRiskRatio);
    out += StringFormat("Margin Needed: %.2f\n", marginNeeded);
+   out += StringFormat("Margin by Pepperstone 1:%.0f: %.2f\n", leverage, marginByLeverage);
 
    int h = FileOpen(fileName, FILE_WRITE|FILE_TXT|FILE_ANSI);
    if(h == INVALID_HANDLE)
