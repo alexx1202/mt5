@@ -57,7 +57,8 @@ input double           MaxTPMultiple      = 10.0;    // Maximum TP multiple allo
 //--- Determine leverage tier for Pepperstone symbols
 double GetPepperstoneLeverage(string symbol)
   {
-     string sym = StringToUpper(symbol);
+     string sym = symbol;      // copy symbol so we can modify it
+     StringToUpper(sym);       // converts sym to uppercase
 
      // major currency pairs 30:1
      if(StringFind(sym,"USD")>=0 &&
