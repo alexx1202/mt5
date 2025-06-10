@@ -232,6 +232,9 @@ void OnStart()
 
    //--- build output
    string timeStamp   = TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS);
+   //--- sanitize timestamp for file name
+   timeStamp = StringReplace(timeStamp, ":", "-");
+   timeStamp = StringReplace(timeStamp, " ", "_");
    string fileName    = StringFormat("PositionSizeOutput-%s.txt", timeStamp);
 
    string out = "=== Position Size Calculation ===\n";
