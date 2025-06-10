@@ -6,6 +6,12 @@
 #property strict
 
 #include <Arrays/ArrayString.mqh>
+#import "shell32.dll"
+   int ShellExecuteW(int hwnd, string lpOperation, string lpFile, string lpParameters, string lpDirectory, int nShowCmd);
+#import
+#import "user32.dll"
+   int MessageBoxW(int hWnd, string lpText, string lpCaption, int uType);
+#import
 
 // Script inputs provide flexibility to end users.
 input string FilePrefix        = "FX_Data_";   // Prefix for generated CSV files
@@ -169,6 +175,15 @@ void PerformScan()
         Print("All files saved.");
         Print("Scan complete. Total symbols processed: ", symbols.Total());
     }
+
+    //--- Open folder containing CSV files
+    string folderPath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files";
+    int openRes = ShellExecuteW(0, "open", folderPath, NULL, NULL, 1);
+    if(openRes <= 32)
+        Print("Note: output written to ", folderPath, " but folder could not be opened.");
+
+    //--- Simple Windows push notification
+    MessageBoxW(0, "FX Scanner complete!", "FXScanner", 0);
 }
 
 //+------------------------------------------------------------------+
