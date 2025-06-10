@@ -158,10 +158,7 @@ void OnTick()
                   : TargetFixedAUD;
 
    double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
-   double contractSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_CONTRACT_SIZE);
-   double oneLotValue = tickValue * contractSize;
-
-   double slValue  = slPoints * oneLotValue;
+   double slValue  = slPoints * tickValue;
    double rawVolume = riskAmt / slValue;
    double minVol = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
    double maxVol = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
@@ -170,7 +167,7 @@ void OnTick()
    if(volume < minVol) volume = minVol;
    if(volume > maxVol) volume = maxVol;
 
-   double tpPoints = tpAmt / oneLotValue;
+   double tpPoints = tpAmt / tickValue;
    double takeProfit = (TradeType == ORDER_TYPE_BUY)
                        ? entryPrice + tpPoints * _Point
                        : entryPrice - tpPoints * _Point;
@@ -198,7 +195,8 @@ void OnTick()
      }
    else
      {
-      detected=false; // re-arm for next trade
+      ObjectDelete(0, TrendlineName);  // remove line to avoid re-entry
+      detected=false; // re-arm if a new line is drawn
      }
   }
 //+------------------------------------------------------------------+
