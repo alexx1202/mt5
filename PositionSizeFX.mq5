@@ -44,8 +44,6 @@ input ENUM_BALANCE_MODE BalanceMode       = BALANCE_PEPPERSTONE;
 input double           RewardRiskRatio    = 2.0;
 input ENUM_ORDER_SIDE  OrderSide          = ORDER_BUY;
 
-input double           PepperstoneBalance = 0.0; // manually set if BalanceMode = BALANCE_PEPPERSTONE
-input double           OandaBalance       = 0.0; // manually set if BalanceMode = BALANCE_OANDA
 input string           OandaAccountID     = "001-011-7821430-001"; // ID used to query OANDA balance
 input string           OandaApiToken      = "25becd000966ef6caa04a753972898fb-fb183afa2b32a7de59b2acdcee7f9b81"; // API token for OANDA REST requests
 
@@ -131,14 +129,13 @@ void OnStart()
             }
          }
       }
-      if(!fetched && OandaBalance>0)
-         balance=OandaBalance;
+      if(!fetched)
+      {
+         Print("Error: failed to retrieve OANDA balance");
+         return;
+      }
    }
-   else // BALANCE_PEPPERSTONE
-   {
-      if(PepperstoneBalance > 0)
-         balance = PepperstoneBalance;
-   }
+   // for Pepperstone we rely solely on the platform balance
    if(balance <= 0)
    {
       Print("Error: invalid account balance");
