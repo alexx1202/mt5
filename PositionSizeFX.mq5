@@ -50,7 +50,7 @@ input string           OandaApiToken      = "25becd000966ef6caa04a753972898fb-fb
 //--- Extra adjustable parameters
 input double           CommissionPerLot   = 7.0;     // Commission for 1 lot (AUD)
 input double           VolumeStep         = 0.01;    // Minimum lot step (auto-adjusts by broker)
-input double           MaxTPMultiple      = 10.0;    // Maximum TP multiple allowed
+input double           MinNetProfitAUD    = 20.0;    // Minimum net profit at TP (AUD)
 
 //--- Determine leverage tier for Pepperstone symbols
 double GetPepperstoneLeverage(string symbol)
@@ -218,12 +218,10 @@ void OnStart()
    }
 
    //--- TP calculation
-   double tpPips       = StopLossPips * RewardRiskRatio;
-   if(tpPips > StopLossPips * MaxTPMultiple)
-      tpPips = StopLossPips * MaxTPMultiple;
-   double netRewardTarget = riskAmount * RewardRiskRatio;
+   double tpPips          = StopLossPips * RewardRiskRatio;
+   double requiredProfit  = MathMax(riskAmount * RewardRiskRatio, MinNetProfitAUD);
    double netReward       = tpPips * pipValue * lotSize - commission;
-   while(netReward < netRewardTarget && tpPips <= StopLossPips * MaxTPMultiple)
+   while(netReward < requiredProfit)
    {
       tpPips += 0.5;
       netReward = tpPips * pipValue * lotSize - commission;
@@ -250,6 +248,8 @@ void OnStart()
    out += StringFormat("Net Risk: AUD%.2f\n", StopLossPips * pipValue * lotSize + commission);
    out += StringFormat("Stop Loss Price: %.5f (%.1f pips)\n", slPrice, StopLossPips);
    out += StringFormat("Take Profit Price: %.5f (%.1f pips | RR=1:%.2f)\n", tpPrice, tpPips, RewardRiskRatio);
+   out += StringFormat("Expected Net Profit at TP: AUD%.2f\n", netReward);
+   out += StringFormat("Minimum Net Profit Target: AUD%.2f\n", MinNetProfitAUD);
    out += StringFormat("Margin Needed: %.2f\n", marginNeeded);
    out += StringFormat("Margin by Pepperstone 1:%.0f: %.2f\n", leverage, marginByLeverage);
 
