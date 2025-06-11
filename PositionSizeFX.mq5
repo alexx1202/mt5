@@ -203,14 +203,21 @@ void OnStart()
    }
 
    //--- confirm using Pepperstone leverage tiers
-   double leverage         = GetPepperstoneLeverage(symbol);
-   double contractSize     = SymbolInfoDouble(symbol, SYMBOL_TRADE_CONTRACT_SIZE);
-   double notionalValue    = lotSize * contractSize * price;
-   double marginByLeverage = notionalValue / leverage;
-   if(marginByLeverage > freeMargin)
-   {
-      PrintFormat("Warning: Pepperstone leverage 1:%.0f requires %.2f margin but only %.2f is available", leverage, marginByLeverage, freeMargin);
-   }
+  double leverage         = GetPepperstoneLeverage(symbol);
+  double contractSize     = SymbolInfoDouble(symbol, SYMBOL_TRADE_CONTRACT_SIZE);
+  double notionalValue    = lotSize * contractSize * price;
+  double marginByLeverage = notionalValue / leverage;
+  if(marginByLeverage > freeMargin)
+  {
+     PrintFormat("Warning: Pepperstone leverage 1:%.0f requires %.2f margin but only %.2f is available", leverage, marginByLeverage, freeMargin);
+  }
+
+  string leverageCheckMsg;
+  if(marginByLeverage <= freeMargin)
+     leverageCheckMsg = StringFormat("PASS: margin requirement %.2f is within free margin %.2f for leverage 1:%.0f", marginByLeverage, freeMargin, leverage);
+  else
+     leverageCheckMsg = StringFormat("FAIL: margin requirement %.2f exceeds free margin %.2f for leverage 1:%.0f", marginByLeverage, freeMargin, leverage);
+  Print(leverageCheckMsg);
 
    //--- TP calculation
    double tpPips          = StopLossPips * RewardRiskRatio;
@@ -245,8 +252,9 @@ void OnStart()
    out += StringFormat("Take Profit Price: %.5f (%.1f pips | RR=1:%.2f)\n", tpPrice, tpPips, RewardRiskRatio);
    out += StringFormat("Expected Net Profit at TP: AUD%.2f\n", netReward);
    out += StringFormat("Minimum Net Profit Target: AUD%.2f\n", MinNetProfitAUD);
-   out += StringFormat("Margin Needed: %.2f\n", marginNeeded);
-   out += StringFormat("Margin by Pepperstone 1:%.0f: %.2f\n", leverage, marginByLeverage);
+  out += StringFormat("Margin Needed: %.2f\n", marginNeeded);
+  out += StringFormat("Margin by Pepperstone 1:%.0f: %.2f\n", leverage, marginByLeverage);
+  out += leverageCheckMsg + "\n";
 
    int h = FileOpen(fileName, FILE_WRITE|FILE_TXT|FILE_ANSI);
    if(h == INVALID_HANDLE)
