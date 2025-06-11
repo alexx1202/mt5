@@ -1,7 +1,8 @@
 //+------------------------------------------------------------------+
 //|                                                PositionSizeFX.mq5|
 //|   Calculates position size, stop loss and take profit levels     |
-//|   with a few options for different brokers.                      |
+//|   with a single BrokerMode option to switch between              |
+//|   Pepperstone and OANDA compatibility.                           |
 //+------------------------------------------------------------------+
 #property script_show_inputs
 #property strict
@@ -28,11 +29,6 @@ enum ENUM_ORDER_SIDE
    ORDER_SELL = 1
 };
 
-enum ENUM_BALANCE_MODE
-{
-   BALANCE_PEPPERSTONE = 0,
-   BALANCE_OANDA       = 1
-};
 
 //--- Inputs
 input ENUM_RISK_MODE   RiskMode           = RISK_FIXED_PERCENT;
@@ -40,7 +36,6 @@ input double           FixedRiskAmountAUD = 100.0;
 input double           RiskPercentage     = 1.0;
 input double           StopLossPips       = 20.0;
 input ENUM_BROKER_MODE BrokerMode         = BROKER_PEPPERSTONE;
-input ENUM_BALANCE_MODE BalanceMode       = BALANCE_PEPPERSTONE;
 input double           RewardRiskRatio    = 2.0;
 input ENUM_ORDER_SIDE  OrderSide          = ORDER_BUY;
 
@@ -98,7 +93,7 @@ void OnStart()
 {
    string symbol   = _Symbol;
    double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
-   if(BalanceMode == BALANCE_OANDA)
+   if(BrokerMode == BROKER_OANDA)
    {
       bool fetched=false;
       if(StringLen(OandaAccountID)>0 && StringLen(OandaApiToken)>0)
@@ -135,7 +130,7 @@ void OnStart()
          return;
       }
    }
-   // for Pepperstone we rely solely on the platform balance
+   // otherwise Pepperstone uses the balance reported by the platform
    if(balance <= 0)
    {
       Print("Error: invalid account balance");
