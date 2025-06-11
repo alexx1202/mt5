@@ -51,7 +51,7 @@ input string           OandaApiToken      = "25becd000966ef6caa04a753972898fb-fb
 
 //--- Extra adjustable parameters
 input double           CommissionPerLot   = 7.0;     // Commission for 1 lot (AUD)
-input double           VolumeStep         = 0.01;    // Minimum lot step
+input double           VolumeStep         = 0.01;    // Minimum lot step (auto-adjusts by broker)
 input double           MaxTPMultiple      = 10.0;    // Maximum TP multiple allowed
 
 //--- Determine leverage tier for Pepperstone symbols
@@ -161,13 +161,19 @@ void OnStart()
    double tickSize = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
    double pipValue = tickVal * pipSize / tickSize;         // monetary value of 1 pip per lot
 
-   //--- choose commission and step based on broker if defaults are unchanged
+   //--- choose commission and minimum lot step based on broker
    double commissionPerLot = CommissionPerLot;
-   double volumeStepLocal  = VolumeStep;
+   double volumeStepLocal;
    if(BrokerMode == BROKER_OANDA)
    {
-      if(commissionPerLot == 7.0) commissionPerLot = 0.0;  // OANDA has no commission by default
-      if(volumeStepLocal == 0.01)  volumeStepLocal = 0.00001;    // units of 1
+      // OANDA charges no commission by default and allows trading single units
+      if(commissionPerLot == 7.0) commissionPerLot = 0.0;
+      volumeStepLocal = 0.00001;        // minimum step of 1 unit
+   }
+   else
+   {
+      // Pepperstone uses a minimum step of 0.01 lots (1,000 units)
+      volumeStepLocal = 0.01;
    }
 
    //--- calculate risk amount
