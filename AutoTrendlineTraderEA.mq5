@@ -249,9 +249,14 @@ void OnTick()
    if(volume < minVol) volume = minVol;
    if(volume > maxVol) volume = maxVol;
 
+   // value of one price step for one lot in deposit currency
    double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
 
-   double tpPoints = tpAmt / tickValue;
+   // convert desired profit (tpAmt) to price distance taking traded volume
+   // into account. without dividing by volume the TP would be calculated as
+   // if we traded exactly 1 lot and would give a much smaller real profit
+   // when trading less.
+   double tpPoints = tpAmt / (tickValue * volume);
    double takeProfit = (TradeType == ORDER_TYPE_BUY)
                        ? entryPrice + tpPoints * _Point
                        : entryPrice - tpPoints * _Point;
