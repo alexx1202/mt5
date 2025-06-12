@@ -179,21 +179,6 @@ void PerformScan()
     //--- Open folder containing CSV files
     string folderPath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files";
 
-    // Create helper Python script if it doesn't exist
-    WriteHighlightScript(folderPath);
-
-    // Run the Python script to apply conditional formatting
-    string csvPath = folderPath + "\\" + FilePrefix + "Range.csv";
-    string args    = "\"" + folderPath + "\\highlight_range_csv.py\" \"" + csvPath + "\"";
-    int pyRes = ShellExecuteW(0, "open", "python", args, NULL, 0);
-    if(pyRes <= 32)
-        Print("Note: run highlight_range_csv.py manually to apply formatting.");
-    else
-    {
-        string xlsPath = folderPath + "\\Range_highlighted.xlsx";
-        ShellExecuteW(0, "open", xlsPath, NULL, NULL, 1);
-    }
-
     int openRes = ShellExecuteW(0, "open", folderPath, NULL, NULL, 1);
     if(openRes <= 32)
         Print("Note: output written to ", folderPath, " but folder could not be opened.");
@@ -320,63 +305,6 @@ void WriteSpreadReport(const CArrayString &symbols)
 
 //+------------------------------------------------------------------+
 
-//+------------------------------------------------------------------+
-//| Write Python helper script                                       |
-//+------------------------------------------------------------------+
-void WriteHighlightScript(const string folder)
-{
-    string path = folder + "\\highlight_range_csv.py";
-    if(FileIsExist(path))
-        return;
-    int h = FileOpen(path, FILE_WRITE | FILE_ANSI | FILE_TXT);
-    if(h < 0)
-    {
-        Print("Failed to create highlight_range_csv.py");
-        return;
-    }
-    string script[] =
-    {
-        "import sys",
-        "from pathlib import Path",
-        "import pandas as pd",
-        "from openpyxl import Workbook",
-        "from openpyxl.utils import get_column_letter",
-        "from openpyxl.formatting.rule import Rule",
-        "from openpyxl.styles import PatternFill",
-        "from openpyxl.styles.differential import DifferentialStyle",
-        "",
-        "def highlight_top_10(csv_file):",
-        "    df = pd.read_csv(csv_file)",
-        "    wb = Workbook()",
-        "    ws = wb.active",
-        "    ws.title = 'Range'",
-        "    ws.append(list(df.columns))",
-        "    for row in df.itertuples(index=False):",
-        "        ws.append(list(row))",
-        "    highlight_cols = ['PERIOD_M1','PERIOD_M5','PERIOD_M15','PERIOD_M30']",
-        "    fill = PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid')",
-        "    last_row = len(df) + 1",
-        "    for col_name in highlight_cols:",
-        "        if col_name in df.columns:",
-        "            col_idx = df.columns.get_loc(col_name) + 1",
-        "            col_letter = get_column_letter(col_idx)",
-        "            rule = Rule(type='top10', rank=10, percent=True)",
-        "            rule.dxf = DifferentialStyle(fill=fill)",
-        "            rule.stopIfTrue = False",
-        "            ws.conditional_formatting.add(f'{col_letter}2:{col_letter}{last_row}', rule)",
-        "    output_file = Path(csv_file).with_name('Range_highlighted.xlsx')",
-        "    wb.save(output_file)",
-        "    print(f'Saved highlighted file to {output_file}')",
-        "",
-        "if __name__ == '__main__':",
-        "    if len(sys.argv) < 2:",
-        "        print('Usage: python highlight_range_csv.py path_to_Range.csv')",
-        "        sys.exit(1)",
-        "    highlight_top_10(sys.argv[1])"
-    };
-    for(int i=0; i<ArraySize(script); i++)
-        FileWriteString(h, script[i] + "\n");
-    FileClose(h);
-}
+// (Python helper script removed)
 
 //+------------------------------------------------------------------+
