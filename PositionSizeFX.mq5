@@ -36,6 +36,17 @@ enum ENUM_SL_UNIT
    SL_POINTS = 1
 };
 
+// asset class categories for Pepperstone symbols
+enum ENUM_PS_ASSET_CLASS
+{
+   PS_ASSET_FX = 0,
+   PS_ASSET_COMMODITY,
+   PS_ASSET_INDEX,
+   PS_ASSET_CRYPTO,
+   PS_ASSET_SHARE,
+   PS_ASSET_OTHER
+};
+
 
 //--- Inputs
 input ENUM_RISK_MODE   RiskMode           = RISK_FIXED_PERCENT;
@@ -90,8 +101,48 @@ double GetPepperstoneLeverage(string symbol)
         StringFind(sym,"LTC")>=0 || StringFind(sym,"XRP")>=0)
         return 2.0;
 
-     // shares or other assets 5:1
-     return 5.0;
+  // shares or other assets 5:1
+  return 5.0;
+  }
+
+// determine if a symbol is a Pepperstone commodity (no commission on Razor)
+bool IsPepperstoneCommodity(string symbol)
+  {
+     string sym = symbol;
+     StringToUpper(sym);
+     if(StringFind(sym,"XAU")>=0 || StringFind(sym,"XAG")>=0 ||
+        StringFind(sym,"XPT")>=0 || StringFind(sym,"XPD")>=0 ||
+        StringFind(sym,"BRENT")>=0 || StringFind(sym,"WTI")>=0 ||
+        StringFind(sym,"OIL")>=0 || StringFind(sym,"NGAS")>=0 ||
+        StringFind(sym,"COFFEE")>=0 || StringFind(sym,"COCOA")>=0 ||
+        StringFind(sym,"COTTON")>=0 || StringFind(sym,"SUGAR")>=0)
+        return true;
+     return false;
+  }
+
+// categorize Pepperstone symbols into major asset classes
+ENUM_PS_ASSET_CLASS GetPepperstoneAssetClass(string symbol)
+  {
+     string sym = symbol;
+     StringToUpper(sym);
+
+     if(IsPepperstoneCommodity(sym))
+        return PS_ASSET_COMMODITY;
+
+     if(StringFind(sym,"US500")>=0 || StringFind(sym,"NAS")>=0 ||
+        StringFind(sym,"UK")>=0   || StringFind(sym,"GER")>=0 ||
+        StringFind(sym,"JP")>=0   || StringFind(sym,"HK")>=0)
+        return PS_ASSET_INDEX;
+
+     if(StringFind(sym,"BTC")>=0 || StringFind(sym,"ETH")>=0 ||
+        StringFind(sym,"LTC")>=0 || StringFind(sym,"XRP")>=0)
+        return PS_ASSET_CRYPTO;
+
+     bool isFxPair = (StringLen(sym)==6 || StringLen(sym)==7);
+     if(isFxPair)
+        return PS_ASSET_FX;
+
+     return PS_ASSET_SHARE;
   }
 
 //+------------------------------------------------------------------+
@@ -180,6 +231,10 @@ void OnStart()
    {
       // Pepperstone uses a minimum step of 0.01 lots (1,000 units)
       volumeStepLocal = 0.01;
+      // non-FX assets have no commission on Pepperstone Razor accounts
+      ENUM_PS_ASSET_CLASS asset = GetPepperstoneAssetClass(symbol);
+      if(asset != PS_ASSET_FX && commissionPerLot == 7.0)
+         commissionPerLot = 0.0;
    }
 
    //--- calculate risk amount
