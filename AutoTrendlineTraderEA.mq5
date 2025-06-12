@@ -145,9 +145,10 @@ double CalcLotSize(double riskAmount,double slPoints)
 //+------------------------------------------------------------------+
 void OnTick()
   {
-   static bool  detected = false;
-   static bool  warnedAuto = false;
-   static double lastAsk = 0.0, lastBid = 0.0;
+  static bool  detected = false;
+  static bool  warnedAuto = false;
+  static bool  deactivated = false;
+  static double lastAsk = 0.0, lastBid = 0.0;
 
    double currAsk = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
    double currBid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
@@ -160,8 +161,12 @@ void OnTick()
    if(ObjectFind(0, TrendlineName) < 0)
      {
       detected = false;
+      deactivated = false;
       return;
      }
+
+   if(deactivated)
+      return;
 
    // Confirm detection once
    if(!detected)
@@ -279,8 +284,9 @@ void OnTick()
      }
    else
      {
-      ObjectDelete(0, TrendlineName);  // remove line to avoid re-entry
-      detected=false; // re-arm if a new line is drawn
+      ObjectSetInteger(0, TrendlineName, OBJPROP_COLOR, clrWhite); // mark line as inactive
+      deactivated=true;             // prevent further executions
+      detected=false;               // re-arm if a new line is drawn
      }
   }
 //+------------------------------------------------------------------+
