@@ -8,6 +8,9 @@
 #include <Trade\Trade.mqh>
 #include <Object.mqh>
 
+// log file for executed trades
+string gLogFile = "AutoTrendlineTradeLog.txt";
+
 CTrade trade;
 
 // ENUMS
@@ -48,15 +51,26 @@ int OnInit()
       Print("Error: RiskPercent must be between 0 and 100.");
       return(INIT_PARAMETERS_INCORRECT);
      }
-   if(StopLossPoints <= 0 && !UseATRStop)
-     {
-      Print("Error: StopLossPoints must be greater than zero.");
-      return(INIT_PARAMETERS_INCORRECT);
-     }
+  if(StopLossPoints <= 0 && !UseATRStop)
+    {
+     Print("Error: StopLossPoints must be greater than zero.");
+     return(INIT_PARAMETERS_INCORRECT);
+    }
 
-   Print("EA initialized. Waiting for trendline '" + TrendlineName + "'.");
-   return(INIT_SUCCEEDED);
-  }
+  // prepare trade log file
+  int logHandle = FileOpen(gLogFile, FILE_READ|FILE_WRITE|FILE_TXT|FILE_ANSI);
+  if(logHandle != INVALID_HANDLE)
+    {
+     if(FileSize(logHandle)==0)
+        FileWriteString(logHandle, "Date,Time,Symbol,Type,EntryPrice,ExecPrice,SlippagePts,StopLoss,TakeProfit,Volume,Result\r\n");
+     FileClose(logHandle);
+    }
+  else
+     Print("Failed to open log file for writing.");
+
+  Print("EA initialized. Waiting for trendline '" + TrendlineName + "'.");
+  return(INIT_SUCCEEDED);
+ }
 
 // helper: calculate ATR stop loss points
 int CalcATRPoints()
@@ -138,8 +152,26 @@ double CalcLotSize(double riskAmount,double slPoints)
    double lotSizeRaw=riskAmount/(stopLossPips*pipValue+commissionPerLot);
    double lotSize=MathCeil(lotSizeRaw/volumeStepLocal)*volumeStepLocal;
    int lotPrec=(int)MathRound(MathLog10(1.0/volumeStepLocal));
-   lotSize=NormalizeDouble(lotSize,lotPrec);
-   return(lotSize);
+  lotSize=NormalizeDouble(lotSize,lotPrec);
+  return(lotSize);
+  }
+
+// log executed trade details including slippage
+void LogTrade(string type,double entryPrice,double execPrice,double stopPrice,double tpPrice,double volume,uint result)
+  {
+   double slippagePts=MathAbs(execPrice-entryPrice)/_Point;
+   int handle=FileOpen(gLogFile,FILE_READ|FILE_WRITE|FILE_TXT|FILE_ANSI);
+   if(handle!=INVALID_HANDLE)
+     {
+      FileSeek(handle,0,SEEK_END);
+      string dt=TimeToString(TimeCurrent(),TIME_DATE);
+      string tm=TimeToString(TimeCurrent(),TIME_SECONDS);
+      string line=StringFormat("%s,%s,%s,%.5f,%.5f,%.2f,%.5f,%.5f,%.2f,%u\r\n",dt,tm,type,entryPrice,execPrice,slippagePts,stopPrice,tpPrice,volume,result);
+      FileWriteString(handle,line);
+      FileClose(handle);
+     }
+   else
+      Print("Failed to write log file: ",GetLastError());
   }
 
 //+------------------------------------------------------------------+
@@ -268,16 +300,16 @@ void OnTick()
 
    PrintFormat("Entry=%.5f SL=%.5f TP=%.5f Vol=%.2f", entryPrice, stopPrice, takeProfit, volume);
 
-   bool result;
-   if(TradeType == ORDER_TYPE_BUY)
-      result = trade.Buy(volume, _Symbol, entryPrice, stopPrice, takeProfit);
-   else
-      result = trade.Sell(volume, _Symbol, entryPrice, stopPrice, takeProfit);
+  bool result;
+  if(TradeType == ORDER_TYPE_BUY)
+     result = trade.Buy(volume, _Symbol, entryPrice, stopPrice, takeProfit);
+  else
+     result = trade.Sell(volume, _Symbol, entryPrice, stopPrice, takeProfit);
 
-   if(!result)
-     {
-      uint code = trade.ResultRetcode();
-      string msg = trade.ResultRetcodeDescription();
+  if(!result)
+    {
+     uint code = trade.ResultRetcode();
+     string msg = trade.ResultRetcodeDescription();
       if(code == 10027 && !warnedAuto)
         {
          warnedAuto = true;
@@ -286,12 +318,14 @@ void OnTick()
         }
       else
          Print(__FILE__, " trade failed code=", code, " desc=", msg);
-     }
+      LogTrade((TradeType==ORDER_TYPE_BUY)?"BUY":"SELL",entryPrice,trade.ResultPrice(),stopPrice,takeProfit,volume,code);
+    }
    else
      {
       ObjectSetInteger(0, TrendlineName, OBJPROP_COLOR, clrWhite); // mark line as inactive
       deactivated=true;             // prevent further executions
       detected=false;               // re-arm if a new line is drawn
+      LogTrade((TradeType==ORDER_TYPE_BUY)?"BUY":"SELL",entryPrice,trade.ResultPrice(),stopPrice,takeProfit,volume,0);
      }
   }
 //+------------------------------------------------------------------+
