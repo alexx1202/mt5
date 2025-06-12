@@ -29,12 +29,20 @@ enum ENUM_ORDER_SIDE
    ORDER_SELL = 1
 };
 
+// choose whether stop loss is entered in pips or in broker points
+enum ENUM_SL_UNIT
+{
+   SL_PIPS   = 0,
+   SL_POINTS = 1
+};
+
 
 //--- Inputs
 input ENUM_RISK_MODE   RiskMode           = RISK_FIXED_PERCENT;
 input double           FixedRiskAmountAUD = 100.0;
 input double           RiskPercentage     = 1.0;
-input double           StopLossPips       = 20.0;
+input ENUM_SL_UNIT     StopLossUnit       = SL_PIPS;   // dropdown for SL units
+input double           StopLossValue      = 20.0;      // stop loss amount
 input ENUM_BROKER_MODE BrokerMode         = BROKER_PEPPERSTONE;
 input double           RewardRiskRatio    = 2.0;
 input ENUM_ORDER_SIDE  OrderSide          = ORDER_BUY;
@@ -149,9 +157,15 @@ void OnStart()
    //--- pip size and value
    int digits      = (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS);
    double pipSize  = MathPow(10.0, -digits + 1);           // distance of 1 pip
+   double pointSize = SymbolInfoDouble(symbol, SYMBOL_POINT);
    double tickVal  = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
    double tickSize = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
    double pipValue = tickVal * pipSize / tickSize;         // monetary value of 1 pip per lot
+
+   // convert stop loss input into pips
+   double StopLossPips = (StopLossUnit == SL_PIPS)
+                         ? StopLossValue
+                         : StopLossValue * pointSize / pipSize;
 
    //--- choose commission and minimum lot step based on broker
    double commissionPerLot = CommissionPerLot;
@@ -240,6 +254,7 @@ void OnStart()
    StringReplace(timeStamp, " ", "_");
    string fileName    = StringFormat("PositionSizeOutput-%s.txt", timeStamp);
 
+   string slUnitsText = (StopLossUnit == SL_PIPS) ? "pips" : "points";
    string out = "=== Position Size Calculation ===\n";
    out += StringFormat("Symbol: %s\n", symbol);
    out += StringFormat("Trade Side: %s\n", isBuy ? "Buy" : "Sell");
@@ -248,7 +263,7 @@ void OnStart()
    out += StringFormat("Lot Size: %.5f\n", lotSize);
    out += StringFormat("Commission: AUD%.2f\n", commission);
    out += StringFormat("Net Risk: AUD%.2f\n", StopLossPips * pipValue * lotSize + commission);
-   out += StringFormat("Stop Loss Price: %.5f (%.1f pips)\n", slPrice, StopLossPips);
+   out += StringFormat("Stop Loss Price: %.5f (%.1f %s)\n", slPrice, StopLossValue, slUnitsText);
    out += StringFormat("Take Profit Price: %.5f (%.1f pips | RR=1:%.2f)\n", tpPrice, tpPips, RewardRiskRatio);
    out += StringFormat("Expected Net Profit at TP: AUD%.2f\n", netReward);
    out += StringFormat("Minimum Net Profit Target: AUD%.2f\n", MinNetProfitAUD);
