@@ -19,7 +19,8 @@ input string usdxSymbol        = "USDX.a";     // Symbol used to compare correla
 input bool   ShowDebugMessages = true;         // Print progress information
 input int    ScanIntervalMinutes = 30;         // Interval between scans
 
-string g_outputFolder = "";                    // Folder where files are saved
+string g_outputFolder = "";                    // Base folder where files are saved
+string g_fileTimestamp = "";                   // Timestamp used in file names
 
 // Timeframes for analysis can be adjusted as needed.
 ENUM_TIMEFRAMES timeframes[] =
@@ -42,16 +43,13 @@ void SanitizeForWindows(string &text)
 }
 
 //+------------------------------------------------------------------+
-//| Create a new folder with timestamp                               |
+//| Get timestamp string for filenames                                |
 //+------------------------------------------------------------------+
-string CreateTimestampedFolder()
+string GetTimestampString()
 {
     string stamp = TimeToString(TimeCurrent(), TIME_DATE|TIME_MINUTES);
     SanitizeForWindows(stamp);
-    string base = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\FXScan_" + stamp;
-    if(!FolderCreate(base))
-        Print("Failed to create folder ", base, ". Error: ", GetLastError());
-    return base + "\\";
+    return stamp;
 }
 
 //+------------------------------------------------------------------+
@@ -62,13 +60,15 @@ void OnStart()
     if(ShowDebugMessages)
         Print("Starting FX Scanner Script v1.35 (All Tick-Based + USDX Correlation + Integrated Spread)");
 
+    g_outputFolder = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\";
+
     while(!IsStopped())
     {
-        g_outputFolder = CreateTimestampedFolder();
+        g_fileTimestamp = GetTimestampString();
         if(ShowDebugMessages)
-            Print("Saving reports to ", g_outputFolder);
+            Print("Saving reports to ", g_outputFolder, " with timestamp prefix ", g_fileTimestamp);
 
-        PerformScan(g_outputFolder);
+        PerformScan(g_outputFolder, g_fileTimestamp);
 
         if(IsStopped())
             break;
@@ -82,7 +82,7 @@ void OnStart()
 //+------------------------------------------------------------------+
 //| Main scanning function                                           |
 //+------------------------------------------------------------------+
-void PerformScan(const string folderPath)
+void PerformScan(const string folderPath, const string timestamp)
 {
     CArrayString symbols;
     int symbolCount = GetWatchlistSymbols(symbols);
@@ -93,10 +93,11 @@ void PerformScan(const string folderPath)
     }
 
     // Open all required CSV files
-    int swapHandle   = FileOpen(folderPath + FilePrefix + "Swap.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
-    int rangeHandle  = FileOpen(folderPath + FilePrefix + "Range.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
-    int changeHandle = FileOpen(folderPath + FilePrefix + "Change.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
-    int corrHandle   = FileOpen(folderPath + FilePrefix + "USDXCorrelation.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
+    string prefix = timestamp + "-" + FilePrefix;
+    int swapHandle   = FileOpen(folderPath + prefix + "Swap.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
+    int rangeHandle  = FileOpen(folderPath + prefix + "Range.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
+    int changeHandle = FileOpen(folderPath + prefix + "Change.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
+    int corrHandle   = FileOpen(folderPath + prefix + "USDXCorrelation.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
     if(swapHandle < 0 || rangeHandle < 0 || changeHandle < 0 || corrHandle < 0)
     {
         Print("Failed to open output files. Error: ", GetLastError());
@@ -212,7 +213,7 @@ void PerformScan(const string folderPath)
     FileClose(corrHandle);
 
     // Spread report uses a separate file
-    WriteSpreadReport(symbols, folderPath);
+    WriteSpreadReport(symbols, folderPath, timestamp);
 
     if(ShowDebugMessages)
     {
@@ -291,7 +292,7 @@ int GetSignificantDecimals(double val)
 //+------------------------------------------------------------------+
 //| Write Spread Report                                              |
 //+------------------------------------------------------------------+
-void WriteSpreadReport(const CArrayString &symbols, const string folderPath)
+void WriteSpreadReport(const CArrayString &symbols, const string folderPath, const string timestamp)
 {
     string syms[];
     double spreads[];
@@ -328,10 +329,11 @@ void WriteSpreadReport(const CArrayString &symbols, const string folderPath)
             }
 
     // Write to CSV
-    int handle = FileOpen(folderPath + FilePrefix + "Spread.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
+    string prefix = timestamp + "-" + FilePrefix;
+    int handle = FileOpen(folderPath + prefix + "Spread.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
     if(handle < 0)
     {
-        Print("Failed opening file: ", folderPath + FilePrefix + "Spread.csv");
+        Print("Failed opening file: ", folderPath + prefix + "Spread.csv");
         return;
     }
     FileWriteString(handle, "Symbol,SpreadPercent (%)\r\n");
@@ -342,7 +344,7 @@ void WriteSpreadReport(const CArrayString &symbols, const string folderPath)
         FileWriteString(handle, syms[i] + "," + DoubleToString(spreads[i], decs) + "\r\n");
     }
     FileClose(handle);
-    Print("Spread report written to ", folderPath + FilePrefix + "Spread.csv");
+    Print("Spread report written to ", folderPath + prefix + "Spread.csv");
 }
 
 //+------------------------------------------------------------------+
