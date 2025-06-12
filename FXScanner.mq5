@@ -19,7 +19,8 @@ input string usdxSymbol        = "USDX.a";     // Symbol used to compare correla
 input bool   ShowDebugMessages = true;         // Print progress information
 input int    ScanIntervalMinutes = 30;         // Interval between scans
 
-string g_outputFolder = "";                    // Base folder where files are saved
+// Relative path (inside MQL5/Files) where reports will be saved
+string g_outputFolder = "";
 string g_fileTimestamp = "";                   // Timestamp used in file names
 
 // Timeframes for analysis can be adjusted as needed.
@@ -60,16 +61,18 @@ void OnStart()
     if(ShowDebugMessages)
         Print("Starting FX Scanner Script v1.35 (All Tick-Based + USDX Correlation + Integrated Spread)");
 
-    // Location where the CSV/Excel files will be stored. Update this path
-    // if your MetaTrader terminal uses a different data folder.
-    g_outputFolder =
-        "C:\\Users\\User\\AppData\\Roaming\\MetaQuotes\\Terminal\\73B7A2420D6397DFF9014A20F1201F97\\MQL5\\Files\\";
+    // Files are always stored relative to the terminal's MQL5\Files folder.
+    // Do not use an absolute path here, otherwise FileOpen() will fail.
+    g_outputFolder = "";  // empty means the root of MQL5\Files
+
+    string displayPath = TerminalInfoString(TERMINAL_DATA_PATH) +
+                         "\\MQL5\\Files\\" + g_outputFolder;
 
     while(!IsStopped())
     {
         g_fileTimestamp = GetTimestampString();
         if(ShowDebugMessages)
-            Print("Saving reports to ", g_outputFolder, " with timestamp prefix ", g_fileTimestamp);
+            Print("Saving reports to ", displayPath, " with timestamp prefix ", g_fileTimestamp);
 
         PerformScan(g_outputFolder, g_fileTimestamp);
 
@@ -225,9 +228,10 @@ void PerformScan(const string folderPath, const string timestamp)
     }
 
     //--- Open folder containing CSV files
-    int openRes = ShellExecuteW(0, "open", folderPath, NULL, NULL, 1);
+    string fullFolder = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\" + folderPath;
+    int openRes = ShellExecuteW(0, "open", fullFolder, NULL, NULL, 1);
     if(openRes <= 32)
-        Print("Note: output written to ", folderPath, " but folder could not be opened.");
+        Print("Note: output written to ", fullFolder, " but folder could not be opened.");
 
     //--- Simple Windows push notification
     MessageBoxW(0, "FX Scanner complete!", "FXScanner", 0);
