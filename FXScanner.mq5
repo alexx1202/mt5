@@ -60,7 +60,10 @@ void OnStart()
     if(ShowDebugMessages)
         Print("Starting FX Scanner Script v1.35 (All Tick-Based + USDX Correlation + Integrated Spread)");
 
-    g_outputFolder = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\";
+    // Location where the CSV/Excel files will be stored. Update this path
+    // if your MetaTrader terminal uses a different data folder.
+    g_outputFolder =
+        "C:\\Users\\User\\AppData\\Roaming\\MetaQuotes\\Terminal\\73B7A2420D6397DFF9014A20F1201F97\\MQL5\\Files\\";
 
     while(!IsStopped())
     {
