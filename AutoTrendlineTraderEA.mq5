@@ -60,7 +60,8 @@ int OnInit()
   if(logHandle != INVALID_HANDLE)
     {
      if(FileSize(logHandle)==0)
-        FileWriteString(logHandle, "Date,Time,Symbol,Type,EntryPrice,ExecPrice,SlippagePts,StopLoss,TakeProfit,Volume,Result\r\n");
+        FileWriteString(logHandle,
+                        "Date,Time,Symbol,Type,EntryPrice,ExecPrice,SlippagePts,StopLoss,TakeProfit,Volume,Result\r\n");
      FileClose(logHandle);
     }
   else
@@ -155,7 +156,11 @@ void LogTrade(string type,double entryPrice,double execPrice,double stopPrice,do
       FileSeek(handle,0,SEEK_END);
       string dt=TimeToString(TimeCurrent(),TIME_DATE);
       string tm=TimeToString(TimeCurrent(),TIME_SECONDS);
-      string line=StringFormat("%s,%s,%s,%.5f,%.5f,%.2f,%.5f,%.5f,%.2f,%u\r\n",dt,tm,type,entryPrice,execPrice,slippagePts,stopPrice,tpPrice,volume,result);
+      // include symbol so metrics line up with header
+      string line=StringFormat(
+         "%s,%s,%s,%s,%.5f,%.5f,%.2f,%.5f,%.5f,%.2f,%u\r\n",
+         dt,tm,_Symbol,type,entryPrice,execPrice,
+         slippagePts,stopPrice,tpPrice,volume,result);
       FileWriteString(handle,line);
       FileClose(handle);
      }
