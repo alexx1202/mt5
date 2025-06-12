@@ -64,7 +64,7 @@ void OnStart()
 
         if(ShowDebugMessages)
             Print("Waiting ", ScanIntervalMinutes, " minutes for next scan...");
-        Sleep((ulong)ScanIntervalMinutes * 60 * 1000);
+        Sleep((uint)ScanIntervalMinutes * 60 * 1000);
     }
 }
 
