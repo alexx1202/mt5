@@ -29,14 +29,25 @@ ENUM_TIMEFRAMES timeframes[] =
 };
 
 //+------------------------------------------------------------------+
+//| Replace characters not allowed in Windows file or folder names    |
+//+------------------------------------------------------------------+
+void SanitizeForWindows(string &text)
+{
+    const string invalid = "\\/:*?\"<>|";
+    for(int i = 0; i < StringLen(invalid); i++)
+        StringReplace(text, StringSubstr(invalid, i, 1), "-");
+    StringReplace(text, ":", "-");
+    StringReplace(text, ".", "-");
+    StringReplace(text, " ", "_");
+}
+
+//+------------------------------------------------------------------+
 //| Create a new folder with timestamp                               |
 //+------------------------------------------------------------------+
 string CreateTimestampedFolder()
 {
     string stamp = TimeToString(TimeCurrent(), TIME_DATE|TIME_MINUTES);
-    StringReplace(stamp, ":", "-");
-    StringReplace(stamp, ".", "-");
-    StringReplace(stamp, " ", "_");
+    SanitizeForWindows(stamp);
     string base = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\FXScan_" + stamp;
     if(!FolderCreate(base))
         Print("Failed to create folder ", base, ". Error: ", GetLastError());
