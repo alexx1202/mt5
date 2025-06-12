@@ -1,8 +1,8 @@
 //+------------------------------------------------------------------+
-//|   Auto Trendline Trader + Position Sizer EA (Improved v4.0)     |
+//|   Auto Trendline Trader + Position Sizer EA (Improved v4.1)     |
 //+------------------------------------------------------------------+
 #property copyright "2024"
-#property version   "4.0"
+#property version   "4.1"
 #property strict
 
 #include <Trade\Trade.mqh>
@@ -13,7 +13,6 @@ CTrade trade;
 // ENUMS
 enum ENUM_RISK_MODE   { RISK_FIXED_PERCENT = 0, RISK_FIXED_AUD = 1 };
 enum ENUM_TARGET_MODE { TARGET_FIXED_PERCENT = 0, TARGET_FIXED_AUD = 1 };
-enum ENUM_BROKER_MODE { BROKER_PEPPERSTONE = 0, BROKER_OANDA = 1 };
 enum ENUM_PS_ASSET_CLASS
   {
    PS_ASSET_FX = 0,
@@ -36,7 +35,6 @@ input int             ATRPeriod       = 14;                   // ATR period
 input double          ATRMultiplier   = 1.5;                  // ATR multiplier
 input ENUM_TARGET_MODE TargetMode     = TARGET_FIXED_PERCENT; // TP mode
 input double          TargetFixedAUD  = 20.0;                 // Fixed AUD TP or percent
-input ENUM_BROKER_MODE BrokerMode     = BROKER_PEPPERSTONE;   // Broker mode
 input double          CommissionPerLot= 7.0;                  // Commission per lot (AUD)
 
 //+------------------------------------------------------------------+
@@ -121,19 +119,10 @@ double CalcLotSize(double riskAmount,double slPoints)
    double stopLossPips=slPoints*pointSize/pipSize;
 
    double commissionPerLot=CommissionPerLot;
-   double volumeStepLocal;
-   if(BrokerMode==BROKER_OANDA)
-     {
-      if(commissionPerLot==7.0) commissionPerLot=0.0;
-      volumeStepLocal=0.00001;
-     }
-   else
-     {
-      volumeStepLocal=0.01;
-      ENUM_PS_ASSET_CLASS asset=GetPepperstoneAssetClass(symbol);
-      if(asset!=PS_ASSET_FX && commissionPerLot==7.0)
-         commissionPerLot=0.0;
-     }
+   double volumeStepLocal=0.01;
+   ENUM_PS_ASSET_CLASS asset=GetPepperstoneAssetClass(symbol);
+   if(asset!=PS_ASSET_FX && commissionPerLot==7.0)
+      commissionPerLot=0.0;
 
    double lotSizeRaw=riskAmount/(stopLossPips*pipValue+commissionPerLot);
    double lotSize=MathCeil(lotSizeRaw/volumeStepLocal)*volumeStepLocal;
