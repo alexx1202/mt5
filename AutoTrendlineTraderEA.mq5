@@ -13,6 +13,16 @@ CTrade trade;
 // ENUMS
 enum ENUM_RISK_MODE   { RISK_FIXED_PERCENT = 0, RISK_FIXED_AUD = 1 };
 enum ENUM_TARGET_MODE { TARGET_FIXED_PERCENT = 0, TARGET_FIXED_AUD = 1 };
+enum ENUM_BROKER_MODE { BROKER_PEPPERSTONE = 0, BROKER_OANDA = 1 };
+enum ENUM_PS_ASSET_CLASS
+  {
+   PS_ASSET_FX = 0,
+   PS_ASSET_COMMODITY,
+   PS_ASSET_INDEX,
+   PS_ASSET_CRYPTO,
+   PS_ASSET_SHARE,
+   PS_ASSET_OTHER
+  };
 
 // INPUTS
 input string          TrendlineName   = "EntryLine";         // Trendline object name
@@ -26,6 +36,8 @@ input int             ATRPeriod       = 14;                   // ATR period
 input double          ATRMultiplier   = 1.5;                  // ATR multiplier
 input ENUM_TARGET_MODE TargetMode     = TARGET_FIXED_PERCENT; // TP mode
 input double          TargetFixedAUD  = 20.0;                 // Fixed AUD TP or percent
+input ENUM_BROKER_MODE BrokerMode     = BROKER_PEPPERSTONE;   // Broker mode
+input double          CommissionPerLot= 7.0;                  // Commission per lot (AUD)
 
 //+------------------------------------------------------------------+
 int OnInit()
@@ -54,6 +66,80 @@ int CalcATRPoints()
       return((int)MathRound(atr[0]*ATRMultiplier/_Point));
    Print("Warning: ATR value invalid. Using default StopLossPoints.");
    return((int)StopLossPoints);
+  }
+
+// determine if a symbol is a Pepperstone commodity
+bool IsPepperstoneCommodity(string symbol)
+  {
+   string sym = symbol;
+   StringToUpper(sym);
+   if(StringFind(sym,"XAU")>=0 || StringFind(sym,"XAG")>=0 ||
+      StringFind(sym,"XPT")>=0 || StringFind(sym,"XPD")>=0 ||
+      StringFind(sym,"BRENT")>=0 || StringFind(sym,"WTI")>=0 ||
+      StringFind(sym,"OIL")>=0 || StringFind(sym,"NGAS")>=0 ||
+      StringFind(sym,"COFFEE")>=0 || StringFind(sym,"COCOA")>=0 ||
+      StringFind(sym,"COTTON")>=0 || StringFind(sym,"SUGAR")>=0)
+         return true;
+   return false;
+  }
+
+// categorize Pepperstone symbols into major asset classes
+ENUM_PS_ASSET_CLASS GetPepperstoneAssetClass(string symbol)
+  {
+   string sym = symbol;
+   StringToUpper(sym);
+
+   if(IsPepperstoneCommodity(sym))
+      return PS_ASSET_COMMODITY;
+
+   if(StringFind(sym,"US500")>=0 || StringFind(sym,"NAS")>=0 ||
+      StringFind(sym,"UK")>=0   || StringFind(sym,"GER")>=0 ||
+      StringFind(sym,"JP")>=0   || StringFind(sym,"HK")>=0)
+      return PS_ASSET_INDEX;
+
+   if(StringFind(sym,"BTC")>=0 || StringFind(sym,"ETH")>=0 ||
+      StringFind(sym,"LTC")>=0 || StringFind(sym,"XRP")>=0)
+      return PS_ASSET_CRYPTO;
+
+   bool isFxPair = (StringLen(sym)==6 || StringLen(sym)==7);
+   if(isFxPair)
+      return PS_ASSET_FX;
+
+   return PS_ASSET_SHARE;
+  }
+
+// calculate lot size using PositionSizeFX rules
+double CalcLotSize(double riskAmount,double slPoints)
+  {
+   string symbol=_Symbol;
+   int    digits=(int)SymbolInfoInteger(symbol,SYMBOL_DIGITS);
+   double pipSize=MathPow(10.0,-digits+1);
+   double pointSize=SymbolInfoDouble(symbol,SYMBOL_POINT);
+   double tickVal=SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_VALUE);
+   double tickSize=SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_SIZE);
+   double pipValue=tickVal*pipSize/tickSize;
+   double stopLossPips=slPoints*pointSize/pipSize;
+
+   double commissionPerLot=CommissionPerLot;
+   double volumeStepLocal;
+   if(BrokerMode==BROKER_OANDA)
+     {
+      if(commissionPerLot==7.0) commissionPerLot=0.0;
+      volumeStepLocal=0.00001;
+     }
+   else
+     {
+      volumeStepLocal=0.01;
+      ENUM_PS_ASSET_CLASS asset=GetPepperstoneAssetClass(symbol);
+      if(asset!=PS_ASSET_FX && commissionPerLot==7.0)
+         commissionPerLot=0.0;
+     }
+
+   double lotSizeRaw=riskAmount/(stopLossPips*pipValue+commissionPerLot);
+   double lotSize=MathCeil(lotSizeRaw/volumeStepLocal)*volumeStepLocal;
+   int lotPrec=(int)MathRound(MathLog10(1.0/volumeStepLocal));
+   lotSize=NormalizeDouble(lotSize,lotPrec);
+   return(lotSize);
   }
 
 //+------------------------------------------------------------------+
@@ -157,15 +243,13 @@ void OnTick()
                   ? accountBal * TargetFixedAUD / 100.0
                   : TargetFixedAUD;
 
-   double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
-   double slValue  = slPoints * tickValue;
-   double rawVolume = riskAmt / slValue;
+   double volume = CalcLotSize(riskAmt, slPoints);
    double minVol = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
    double maxVol = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
-   double stepVol = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
-   double volume = MathRound(rawVolume/stepVol) * stepVol;
    if(volume < minVol) volume = minVol;
    if(volume > maxVol) volume = maxVol;
+
+   double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
 
    double tpPoints = tpAmt / tickValue;
    double takeProfit = (TradeType == ORDER_TYPE_BUY)
