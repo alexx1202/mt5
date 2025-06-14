@@ -108,30 +108,42 @@ double CalculateLotSize()
       return(BacktestLotSize);
 
    double tickValue = SymbolInfoDouble(currentSymbol, SYMBOL_TRADE_TICK_VALUE);
-   if(tickValue <= 0)
+   double tickSize  = SymbolInfoDouble(currentSymbol, SYMBOL_TRADE_TICK_SIZE);
+   if(tickValue <= 0 || tickSize <= 0)
      {
-      Print("Invalid tick value.");
+      Print("Invalid tick data.");
       return(0.0);
      }
 
-   double pipValue = tickValue * 10;
+   double pipValue = tickValue / (tickSize / _Point);
    double slPips   = UseATRStopLoss ? (double)CalculateATRPoints() / 10.0 : StopLoss_Pips;
    double riskPerLot = slPips * pipValue;
-   double lots = MinRiskAUD / riskPerLot;
+   double rawLots = MinRiskAUD / riskPerLot;
 
-  double minLot  = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_MIN);
-  double maxLot  = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_MAX);
-  double lotStep = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_STEP);
+   double minLot  = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_MIN);
+   double maxLot  = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_MAX);
+   double lotStep = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_STEP);
 
-  lots = MathFloor(lots / lotStep) * lotStep;
-  if(lots < minLot) lots = minLot;
-  if(lots > maxLot) lots = maxLot;
+   double lots = MathFloor(rawLots / lotStep) * lotStep;
+   if(lots < minLot) lots = minLot;
+   if(lots > maxLot) lots = maxLot;
 
-   // verify final risk does not exceed allowed tolerance (10% over MinRiskAUD)
+   // calculate final risk after rounding
    double finalRisk = lots * riskPerLot;
+
+   // adjust lots if risk is outside the 9-11 AUD range
    if(finalRisk > MinRiskAUD * 1.1)
+     lots = MathFloor((MinRiskAUD * 1.1) / riskPerLot / lotStep) * lotStep;
+   else if(finalRisk < MinRiskAUD * 0.9)
+     lots = MathCeil((MinRiskAUD * 0.9) / riskPerLot / lotStep) * lotStep;
+
+   if(lots < minLot) lots = minLot;
+   if(lots > maxLot) lots = maxLot;
+
+   finalRisk = lots * riskPerLot;
+   if(finalRisk < MinRiskAUD * 0.9 || finalRisk > MinRiskAUD * 1.1)
      {
-      Print("Risk ", finalRisk, " AUD exceeds allowed amount; trade skipped.");
+      Print("Risk ", finalRisk, " AUD outside limits; trade skipped.");
       return(0.0);
      }
 
