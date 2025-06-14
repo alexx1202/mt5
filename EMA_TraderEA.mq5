@@ -35,6 +35,10 @@ input double BacktestRewardRisk  = 2.0;  // reward:risk ratio in backtest
 //--- hotkey
 input bool   EnableHotkey        = true; // press J to toggle the EA
 
+//--- slope filter settings
+input int    SlopeBarsBack       = 3;    // how many bars back to compare the EMA
+input double MinSlopePoints      = 2.0;  // minimum EMA change (in points) to trade
+
 //--- global variables
 bool   eaEnabled      = true;     // is the EA currently active?
 string currentSymbol;             // symbol we trade on
@@ -48,8 +52,9 @@ int OnInit()
    currentSymbol = _Symbol;
 
    // validate inputs so they are sensible
-   if(FastEMA_Period <= 0 || StopLoss_Pips <= 0 || RewardRiskRatio <= 0)
-     {
+   if(FastEMA_Period <= 0 || StopLoss_Pips <= 0 || RewardRiskRatio <= 0 ||
+      SlopeBarsBack <= 0 || MinSlopePoints <= 0)
+    {
       Print("Error: input values must be greater than zero.");
       return(INIT_PARAMETERS_INCORRECT);
      }
@@ -245,13 +250,22 @@ void ExecuteTrade()
       return;
    if(PositionSelect(currentSymbol))
       return; // already have a position on this symbol
-   if(Bars(currentSymbol, PERIOD_CURRENT) < FastEMA_Period + 2)
-      return; // not enough bars to calculate EMA
+   if(Bars(currentSymbol, PERIOD_CURRENT) < FastEMA_Period + SlopeBarsBack)
+      return; // not enough bars to calculate EMA or slope
 
    maFast.Refresh();
    double ema = maFast.Main(0);
    if(ema <= 0 || ema == DBL_MAX)
       return;
+
+   // check the EMA slope to filter sideways markets
+   double emaPrev = maFast.Main(SlopeBarsBack);
+   double slope   = MathAbs(ema - emaPrev);
+   if(slope < MinSlopePoints * _Point)
+     {
+      lastStatus = "slope too flat";
+      return; // skip trading when market lacks direction
+     }
 
    CheckBuy(ema);
    CheckSell(ema);
