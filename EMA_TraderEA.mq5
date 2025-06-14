@@ -110,7 +110,9 @@ int OnInit()
                "Result");
       FileClose(handle);
       // save another copy of the log in the terminal's Files folder
-      FileCopy("FX_EMA_TradeLog.csv", logFilePath);
+      // copy the log file to the terminal's Files folder
+      // the 0 flags mean the files are not in the common directory
+      FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0);
     }
   else
       Print("Failed to open trade log file.");
@@ -223,7 +225,8 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
                 result);
       FileClose(handle);
       // save another copy of the log in the terminal's Files folder
-      FileCopy("FX_EMA_TradeLog.csv", logFilePath);
+      // copy the updated log so it's available in the terminal folder
+      FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0);
     }
   else
       Print("Failed to log trade.");
