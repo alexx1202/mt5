@@ -178,9 +178,10 @@ void CheckBuy(double ema)
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
    double threshold = TouchThreshold * _Point;
 
-   if(bid < ema - threshold || bid > ema + threshold)
+   // check the ask price because buys execute at ask
+   if(ask < ema - threshold || ask > ema + threshold)
       return; // price not close enough
-   if(bid <= ema)
+   if(ask <= ema)
       return; // price must approach from above
 
    double prevClose = iClose(currentSymbol, PERIOD_CURRENT, 1);
@@ -220,9 +221,10 @@ void CheckSell(double ema)
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
    double threshold = TouchThreshold * _Point;
 
-   if(ask < ema - threshold || ask > ema + threshold)
+   // check the bid price because sells execute at bid
+   if(bid < ema - threshold || bid > ema + threshold)
       return;
-   if(ask >= ema)
+   if(bid >= ema)
       return; // price must approach from below
 
    double prevClose = iClose(currentSymbol, PERIOD_CURRENT, 1);
