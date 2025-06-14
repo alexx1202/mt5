@@ -12,26 +12,25 @@
 CTrade  trade;
 CiMA    maFast;
 
-//--- live trading settings
-input int    EmaPeriod       = 9;      // fast EMA period
-input double TouchPct        = 0.005;  // allowed distance from EMA
-input double RiskAUD         = 10.0;   // money to risk per trade
-                                        // EA keeps risk within ±1 AUD
-input int    StopPips        = 15;     // fixed stop loss in pips
-input int    TakePips        = 30;     // fixed take profit (if RRTarget==0)
-input double RRTarget        = 2.0;    // reward:risk ratio
-input bool   UseAtrSL        = false;  // use ATR stop loss
-input double AtrMult         = 1.5;    // ATR multiplier
-input uint   MagicID         = 20240405; // unique ID for this EA
+//--- live trading options
+input int    FastEMA     = 9;      // fast EMA period
+input double NearPct     = 0.005;  // allowed distance from EMA
+input double RiskAUD     = 10.0;   // risk per trade in AUD
+input int    StopPips    = 15;     // stop loss in pips
+input int    TakePips    = 30;     // take profit if RRRatio==0
+input double RRRatio     = 2.0;    // reward:risk ratio
+input bool   AtrSL       = false;  // use ATR stop loss
+input double AtrFactor   = 1.5;    // ATR multiplier
+input uint   MagicNum    = 20240405; // unique EA ID
 
-//--- backtest only settings
-input bool   TestUseLot      = false;  // use fixed lot when backtesting
-input double TestLotSize     = 0.01;   // fixed lot size in backtest
-input double TestRR          = 2.0;    // reward:risk ratio in backtest
+//--- backtest options
+input bool   FixLotTest  = false;  // use fixed lot when testing
+input double TestLot     = 0.01;   // fixed lot size for tests
+input double TestRR      = 2.0;    // test reward:risk ratio
 
-//--- other options
-input bool   UseHotkey       = true;   // press J to toggle the EA
-input int    NyCloseBNE      = 7;      // NY close / Asian open (Brisbane)
+//--- misc options
+input bool   Hotkey      = true;   // press J to toggle the EA
+input int    NyCloseBne  = 7;      // NY close / Asian open (Brisbane)
 
 //--- global variables
 bool   eaEnabled      = true;     // is the EA currently active?
@@ -52,8 +51,8 @@ bool TradingTimeRestricted()
    if(hourBNE >= 24)
       hourBNE -= 24;
 
-   int start = (NyCloseBNE - 3 + 24) % 24;  // 3h before NY close
-   int end   = (NyCloseBNE + 3) % 24;       // 3h after
+   int start = (NyCloseBne - 3 + 24) % 24;  // 3h before NY close
+   int end   = (NyCloseBne + 3) % 24;       // 3h after
 
    if(start < end)
       return(hourBNE >= start && hourBNE < end);
@@ -69,23 +68,23 @@ int OnInit()
    currentSymbol = _Symbol;
 
    // validate inputs so they are sensible
-   if(EmaPeriod <= 0 || StopPips <= 0 || RRTarget <= 0 ||
-      TouchPct <= 0)
+   if(FastEMA <= 0 || StopPips <= 0 || RRRatio <= 0 ||
+      NearPct <= 0)
     {
       Print("Error: input values must be greater than zero.");
       return(INIT_PARAMETERS_INCORRECT);
      }
 
    // create EMA indicator
-   if(!maFast.Create(currentSymbol, PERIOD_CURRENT, EmaPeriod, 0, MODE_EMA, PRICE_CLOSE))
+   if(!maFast.Create(currentSymbol, PERIOD_CURRENT, FastEMA, 0, MODE_EMA, PRICE_CLOSE))
      {
       Print("Failed to create EMA. Error ", GetLastError());
       return(INIT_FAILED);
      }
 
   maFast.Refresh();
-  // use MagicID input for unique identifier
-  trade.SetExpertMagicNumber(MagicID);
+  // use MagicNum input for unique identifier
+  trade.SetExpertMagicNumber(MagicNum);
   trade.SetTypeFilling(ORDER_FILLING_FOK);
 
   //--- set log file path in MQL5\Files
@@ -130,7 +129,7 @@ int CalculateATRPoints()
    double atr[];
    if(CopyBuffer(iATR(currentSymbol, PERIOD_CURRENT, 14), 0, 0, 1, atr) > 0)
      {
-      return(int)MathRound((atr[0] * AtrMult) / _Point);
+      return(int)MathRound((atr[0] * AtrFactor) / _Point);
      }
    Print("ATR fetch failed—using fixed stop loss.");
    return(StopPips * 10); // convert pips to points
@@ -141,8 +140,8 @@ int CalculateATRPoints()
 //+------------------------------------------------------------------+
 double CalculateLotSize()
   {
-   if(TestUseLot)
-      return(TestLotSize);
+   if(FixLotTest)
+      return(TestLot);
 
    double tickValue = SymbolInfoDouble(currentSymbol, SYMBOL_TRADE_TICK_VALUE);
    double tickSize  = SymbolInfoDouble(currentSymbol, SYMBOL_TRADE_TICK_SIZE);
@@ -155,7 +154,7 @@ double CalculateLotSize()
 
    double pipSize  = MathPow(10.0, -digits + 1);
    double pipValue = tickValue * pipSize / tickSize;
-   double slPips   = UseAtrSL ? (double)CalculateATRPoints() / 10.0 : StopPips;
+   double slPips   = AtrSL ? (double)CalculateATRPoints() / 10.0 : StopPips;
    double riskPerLot = slPips * pipValue;
    double rawLots = RiskAUD / riskPerLot;
 
@@ -221,7 +220,7 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
                 price,
                 sl,
                 tp,
-                UseAtrSL,
+                AtrSL,
                 result);
       FileClose(handle);
       // save another copy of the log in the terminal's Files folder
@@ -239,7 +238,7 @@ void CheckBuy(double ema)
   {
    double bid = SymbolInfoDouble(currentSymbol, SYMBOL_BID);
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
-   double threshold = ema * (TouchPct / 100.0);
+   double threshold = ema * (NearPct / 100.0);
 
    // ensure price is close enough to the EMA
    if(ask < ema - threshold || ask > ema + threshold)
@@ -255,8 +254,8 @@ void CheckBuy(double ema)
    if(curLow > ema)
       return;
 
-   double slPoints = UseAtrSL ? CalculateATRPoints() : StopPips * 10;
-   double rr       = TestUseLot ? TestRR : RRTarget;
+   double slPoints = AtrSL ? CalculateATRPoints() : StopPips * 10;
+   double rr       = FixLotTest ? TestRR : RRRatio;
    double tpPoints = slPoints * rr;
 
    double sl = ask - slPoints * _Point;
@@ -285,7 +284,7 @@ void CheckSell(double ema)
   {
    double bid = SymbolInfoDouble(currentSymbol, SYMBOL_BID);
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
-   double threshold = ema * (TouchPct / 100.0);
+   double threshold = ema * (NearPct / 100.0);
 
    // ensure price is close enough to the EMA
    if(bid < ema - threshold || bid > ema + threshold)
@@ -301,8 +300,8 @@ void CheckSell(double ema)
    if(curHigh < ema)
       return;
 
-   double slPoints = UseAtrSL ? CalculateATRPoints() : StopPips * 10;
-   double rr       = TestUseLot ? TestRR : RRTarget;
+   double slPoints = AtrSL ? CalculateATRPoints() : StopPips * 10;
+   double rr       = FixLotTest ? TestRR : RRRatio;
    double tpPoints = slPoints * rr;
 
    double sl = bid + slPoints * _Point;
@@ -347,7 +346,7 @@ void ExecuteTrade()
      }
   if(PositionSelect(currentSymbol))
       return; // already have a position on this symbol
-   if(Bars(currentSymbol, PERIOD_CURRENT) < EmaPeriod)
+   if(Bars(currentSymbol, PERIOD_CURRENT) < FastEMA)
       return; // not enough bars to calculate EMA
 
    maFast.Refresh();
@@ -373,7 +372,7 @@ void OnTick()
 //+------------------------------------------------------------------+
 void OnChartEvent(const int id,const long &lparam,const double &dparam,const string &sparam)
   {
-   if(UseHotkey && id == CHARTEVENT_KEYDOWN && lparam == 74) // J key
+   if(Hotkey && id == CHARTEVENT_KEYDOWN && lparam == 74) // J key
      {
       eaEnabled = !eaEnabled;
       lastStatus = eaEnabled ? "enabled" : "disabled";
