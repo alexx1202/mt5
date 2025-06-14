@@ -51,7 +51,6 @@ bool TradingTimeRestricted()
    datetime server = TimeTradeServer();
    datetime utc    = TimeGMT();
    int offset      = (int)MathRound((double)(server - utc) / 3600.0); // +2 or +3
-
    // convert server time to Brisbane (UTC+10)
    datetime bneTime = server + (10 - offset) * 3600;
    int hourBNE      = TimeHour(bneTime);
