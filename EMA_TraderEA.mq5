@@ -92,8 +92,8 @@ int OnInit()
   trade.SetExpertMagicNumber(MagicNum);
   trade.SetTypeFilling(ORDER_FILLING_FOK);
 
-  //--- set log file path in MQL5\Files
-  logFilePath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\FX_EMA_TradeLog.csv";
+  //--- save logs in the shared "Common" folder so they are easy to find
+  logFilePath = TerminalInfoString(TERMINAL_COMMONDATA_PATH) + "\\FX_EMA_TradeLog.csv";
   Print("Trade log will be saved to ", logFilePath);
 
   // create trade log file
@@ -117,7 +117,8 @@ int OnInit()
       // save another copy of the log in the terminal's Files folder
       // copy the log file to the terminal's Files folder
       // the 0 flags mean the files are not in the common directory
-      if(!FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0))
+      // copy the initial log to the common folder
+      if(!FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, FILE_COMMON))
          Print("Warning: could not copy log file to ", logFilePath);
     }
   else
@@ -238,9 +239,8 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
                 AtrSL,
                 result);
       FileClose(handle);
-      // save another copy of the log in the terminal's Files folder
-      // copy the updated log so it's available in the terminal folder
-      FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0);
+      // save another copy of the log in the terminal's common folder
+      FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, FILE_COMMON);
     }
   else
       Print("Failed to log trade.");
@@ -396,3 +396,11 @@ void OnChartEvent(const int id,const long &lparam,const double &dparam,const str
   }
 
 //+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+//| Cleanup on shutdown                                              |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+  {
+   FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, FILE_COMMON);
+  }
