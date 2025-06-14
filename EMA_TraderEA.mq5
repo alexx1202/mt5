@@ -18,6 +18,8 @@ input double TouchPercent        = 0.005; // distance from EMA in percent
 
 //--- risk settings
 input double MinRiskAUD          = 10.0; // how much money to risk per trade
+                                       // EA enforces risk within ±1 AUD of
+                                       // this value
 input int    StopLoss_Pips       = 15;   // fixed stop loss in pips
 input int    TakeProfit_Pips     = 30;   // fixed take profit in pips (unused when RewardRiskRatio > 0)
 input double RewardRiskRatio     = 2.0;  // reward:risk ratio for trades
@@ -127,17 +129,21 @@ double CalculateLotSize()
    // calculate final risk after rounding
    double finalRisk = lots * riskPerLot;
 
-   // adjust lots if risk is outside the 9-11 AUD range
-   if(finalRisk > MinRiskAUD * 1.1)
-     lots = MathFloor((MinRiskAUD * 1.1) / riskPerLot / lotStep) * lotStep;
-   else if(finalRisk < MinRiskAUD * 0.9)
-     lots = MathCeil((MinRiskAUD * 0.9) / riskPerLot / lotStep) * lotStep;
+   // calculate allowed risk range of ±1 AUD around the requested amount
+   double lowerRisk = MinRiskAUD - 1.0;
+   double upperRisk = MinRiskAUD + 1.0;
+
+   // adjust lots if risk is outside the allowed range
+   if(finalRisk > upperRisk)
+     lots = MathFloor(upperRisk / riskPerLot / lotStep) * lotStep;
+   else if(finalRisk < lowerRisk)
+     lots = MathCeil(lowerRisk / riskPerLot / lotStep) * lotStep;
 
    if(lots < minLot) lots = minLot;
    if(lots > maxLot) lots = maxLot;
 
    finalRisk = lots * riskPerLot;
-   if(finalRisk < MinRiskAUD * 0.9 || finalRisk > MinRiskAUD * 1.1)
+   if(finalRisk < lowerRisk || finalRisk > upperRisk)
      {
       Print("Risk ", finalRisk, " AUD outside limits; trade skipped.");
       return(0.0);
