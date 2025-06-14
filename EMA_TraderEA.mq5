@@ -92,8 +92,8 @@ int OnInit()
   trade.SetExpertMagicNumber(MagicNum);
   trade.SetTypeFilling(ORDER_FILLING_FOK);
 
-  //--- save logs in the shared "Common" folder so they are easy to find
-  logFilePath = TerminalInfoString(TERMINAL_COMMONDATA_PATH) + "\\FX_EMA_TradeLog.csv";
+  //--- set log file path in MQL5\\Files so it's easy to locate
+  logFilePath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\FX_EMA_TradeLog.csv";
   Print("Trade log will be saved to ", logFilePath);
 
   // create trade log file
@@ -115,7 +115,6 @@ int OnInit()
                "Result");
       FileClose(handle);
       // save another copy of the log in the terminal's Files folder
-      // copy the log file to the terminal's Files folder
       // the 0 flags mean the files are not in the common directory
       // copy the initial log to the common folder
       if(!FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, FILE_COMMON))
@@ -239,8 +238,8 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
                 AtrSL,
                 result);
       FileClose(handle);
-      // save another copy of the log in the terminal's common folder
-      FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, FILE_COMMON);
+      // save another copy of the log in the terminal's Files folder
+      FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0);
     }
   else
       Print("Failed to log trade.");
@@ -396,11 +395,12 @@ void OnChartEvent(const int id,const long &lparam,const double &dparam,const str
   }
 
 //+------------------------------------------------------------------+
-
-//+------------------------------------------------------------------+
-//| Cleanup on shutdown                                              |
+//| Cleanup on exit                                                  |
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
-   FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, FILE_COMMON);
+   // copy the log once more when the EA stops
+   FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0);
   }
+
+//+------------------------------------------------------------------+
