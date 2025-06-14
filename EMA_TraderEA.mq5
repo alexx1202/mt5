@@ -2,7 +2,7 @@
 //|   AUD EMA Trader EA (Improved for beginners)                    |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2024, Pepperstone EA"
-#property version   "6.9"
+#property version   "7.0"
 #property strict
 
 #include <Trade/Trade.mqh>
@@ -14,7 +14,7 @@ CiMA    maFast;
 
 //--- EMA settings
 input int    FastEMA_Period      = 9;    // period for the fast EMA
-input double TouchThreshold      = 5.0;  // distance in points for near-EMA entries
+input double TouchPercent        = 0.005; // distance from EMA in percent
 
 //--- risk settings
 input double MinRiskAUD          = 10.0; // how much money to risk per trade
@@ -35,10 +35,6 @@ input double BacktestRewardRisk  = 2.0;  // reward:risk ratio in backtest
 //--- hotkey
 input bool   EnableHotkey        = true; // press J to toggle the EA
 
-//--- slope filter settings
-input int    SlopeBarsBack       = 3;    // how many bars back to compare the EMA
-input double MinSlopePoints      = 2.0;  // minimum EMA change (in points) to trade
-
 //--- global variables
 bool   eaEnabled      = true;     // is the EA currently active?
 string currentSymbol;             // symbol we trade on
@@ -53,7 +49,7 @@ int OnInit()
 
    // validate inputs so they are sensible
    if(FastEMA_Period <= 0 || StopLoss_Pips <= 0 || RewardRiskRatio <= 0 ||
-      SlopeBarsBack <= 0 || MinSlopePoints <= 0)
+      TouchPercent <= 0)
     {
       Print("Error: input values must be greater than zero.");
       return(INIT_PARAMETERS_INCORRECT);
@@ -176,7 +172,7 @@ void CheckBuy(double ema)
   {
    double bid = SymbolInfoDouble(currentSymbol, SYMBOL_BID);
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
-   double threshold = TouchThreshold * _Point;
+   double threshold = ema * (TouchPercent / 100.0);
 
    // check the ask price because buys execute at ask
    if(ask < ema - threshold || ask > ema + threshold)
@@ -219,7 +215,7 @@ void CheckSell(double ema)
   {
    double bid = SymbolInfoDouble(currentSymbol, SYMBOL_BID);
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
-   double threshold = TouchThreshold * _Point;
+   double threshold = ema * (TouchPercent / 100.0);
 
    // check the bid price because sells execute at bid
    if(bid < ema - threshold || bid > ema + threshold)
@@ -264,22 +260,13 @@ void ExecuteTrade()
       return;
    if(PositionSelect(currentSymbol))
       return; // already have a position on this symbol
-   if(Bars(currentSymbol, PERIOD_CURRENT) < FastEMA_Period + SlopeBarsBack)
-      return; // not enough bars to calculate EMA or slope
+   if(Bars(currentSymbol, PERIOD_CURRENT) < FastEMA_Period)
+      return; // not enough bars to calculate EMA
 
    maFast.Refresh();
    double ema = maFast.Main(0);
    if(ema <= 0 || ema == DBL_MAX)
       return;
-
-   // check the EMA slope to filter sideways markets
-   double emaPrev = maFast.Main(SlopeBarsBack);
-   double slope   = MathAbs(ema - emaPrev);
-   if(slope < MinSlopePoints * _Point)
-     {
-      lastStatus = "slope too flat";
-      return; // skip trading when market lacks direction
-     }
 
    CheckBuy(ema);
    CheckSell(ema);
