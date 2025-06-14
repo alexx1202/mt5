@@ -114,13 +114,21 @@ double CalculateLotSize()
    double riskPerLot = slPips * pipValue;
    double lots = MinRiskAUD / riskPerLot;
 
-   double minLot  = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_MIN);
-   double maxLot  = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_MAX);
-   double lotStep = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_STEP);
+  double minLot  = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_MIN);
+  double maxLot  = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_MAX);
+  double lotStep = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_STEP);
 
-   lots = MathFloor(lots / lotStep) * lotStep;
-   if(lots < minLot) lots = minLot;
-   if(lots > maxLot) lots = maxLot;
+  lots = MathFloor(lots / lotStep) * lotStep;
+  if(lots < minLot) lots = minLot;
+  if(lots > maxLot) lots = maxLot;
+
+   // verify final risk does not exceed allowed tolerance (10% over MinRiskAUD)
+   double finalRisk = lots * riskPerLot;
+   if(finalRisk > MinRiskAUD * 1.1)
+     {
+      Print("Risk ", finalRisk, " AUD exceeds allowed amount; trade skipped.");
+      return(0.0);
+     }
 
    return(lots);
   }
