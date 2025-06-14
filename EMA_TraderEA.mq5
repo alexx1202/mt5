@@ -204,16 +204,19 @@ void CheckBuy(double ema)
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
    double threshold = ema * (TouchPercent / 100.0);
 
-   // check the ask price because buys execute at ask
+   // ensure price is close enough to the EMA
    if(ask < ema - threshold || ask > ema + threshold)
-      return; // price not close enough
-   if(ask <= ema)
-      return; // price must approach from above
+      return;
 
    double prevClose = iClose(currentSymbol, PERIOD_CURRENT, 1);
    double prevEMA   = maFast.Main(1);
    if(prevClose <= prevEMA)
       return; // previous candle not above EMA
+
+   // price must have approached the EMA from above during this bar
+   double curLow = iLow(currentSymbol, PERIOD_CURRENT, 0);
+   if(curLow > ema)
+      return;
 
    double slPoints = UseATRStopLoss ? CalculateATRPoints() : StopLoss_Pips * 10;
    double rr       = UseBacktestLots ? BacktestRewardRisk : RewardRiskRatio;
@@ -247,15 +250,18 @@ void CheckSell(double ema)
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
    double threshold = ema * (TouchPercent / 100.0);
 
-   // check the bid price because sells execute at bid
+   // ensure price is close enough to the EMA
    if(bid < ema - threshold || bid > ema + threshold)
       return;
-   if(bid >= ema)
-      return; // price must approach from below
 
    double prevClose = iClose(currentSymbol, PERIOD_CURRENT, 1);
    double prevEMA   = maFast.Main(1);
    if(prevClose >= prevEMA)
+      return; // previous candle not below EMA
+
+   // price must have approached the EMA from below during this bar
+   double curHigh = iHigh(currentSymbol, PERIOD_CURRENT, 0);
+   if(curHigh < ema)
       return;
 
    double slPoints = UseATRStopLoss ? CalculateATRPoints() : StopLoss_Pips * 10;
