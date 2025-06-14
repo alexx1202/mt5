@@ -48,12 +48,13 @@ string logFilePath = "";          // where to save the trade log
 //+------------------------------------------------------------------+
 bool TradingTimeRestricted()
   {
-   datetime utc = TimeGMT();
-   MqlDateTime dt;
-   TimeToStruct(utc, dt);
-   int hourBNE = dt.hour + 10;  // convert UTC to Brisbane (UTC+10)
-   if(hourBNE >= 24)
-      hourBNE -= 24;
+   datetime server = TimeTradeServer();
+   datetime utc    = TimeGMT();
+   int offset      = (int)MathRound((double)(server - utc) / 3600.0); // +2 or +3
+
+   // convert server time to Brisbane (UTC+10)
+   datetime bneTime = server + (10 - offset) * 3600;
+   int hourBNE      = TimeHour(bneTime);
 
    int start = (NyCloseBne - 3 + 24) % 24;  // 3h before NY close
    int end   = (NyCloseBne + 3) % 24;       // 3h after
@@ -212,8 +213,10 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
    string dateStrServer = TimeToString(TimeCurrent(), TIME_DATE);
    string timeStrServer = TimeToString(TimeCurrent(), TIME_SECONDS);
 
+   datetime server   = TimeTradeServer();
    datetime utc      = TimeGMT();
-   datetime bneTime  = utc + 10 * 3600; // UTC+10 for Brisbane
+   int offset        = (int)MathRound((double)(server - utc) / 3600.0);
+   datetime bneTime  = server + (10 - offset) * 3600; // convert to Brisbane
    string dateStrBNE = TimeToString(bneTime, TIME_DATE);
    string timeStrBNE = TimeToString(bneTime, TIME_SECONDS);
 
