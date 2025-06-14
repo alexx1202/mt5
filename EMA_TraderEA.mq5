@@ -19,7 +19,8 @@ input double TouchThreshold      = 0.5;  // how close price must be to EMA to tr
 //--- risk settings
 input double MinRiskAUD          = 10.0; // how much money to risk per trade
 input int    StopLoss_Pips       = 15;   // fixed stop loss in pips
-input int    TakeProfit_Pips     = 30;   // fixed take profit in pips
+input int    TakeProfit_Pips     = 30;   // fixed take profit in pips (unused when RewardRiskRatio > 0)
+input double RewardRiskRatio     = 2.0;  // reward:risk ratio for trades
 
 //--- advanced options
 input bool   UseATRStopLoss      = false;// use ATR-based stop instead
@@ -47,7 +48,7 @@ int OnInit()
    currentSymbol = _Symbol;
 
    // validate inputs so they are sensible
-   if(FastEMA_Period <= 0 || StopLoss_Pips <= 0 || TakeProfit_Pips <= 0)
+   if(FastEMA_Period <= 0 || StopLoss_Pips <= 0 || RewardRiskRatio <= 0)
      {
       Print("Error: input values must be greater than zero.");
       return(INIT_PARAMETERS_INCORRECT);
@@ -161,7 +162,8 @@ void CheckBuy(double ema)
       return; // previous candle not above EMA
 
    double slPoints = UseATRStopLoss ? CalculateATRPoints() : StopLoss_Pips * 10;
-   double tpPoints = UseBacktestLots ? (BacktestRewardRisk * slPoints) : TakeProfit_Pips * 10;
+   double rr       = UseBacktestLots ? BacktestRewardRisk : RewardRiskRatio;
+   double tpPoints = slPoints * rr;
 
    double sl = ask - slPoints * _Point;
    double tp = ask + tpPoints * _Point;
@@ -200,7 +202,8 @@ void CheckSell(double ema)
       return;
 
    double slPoints = UseATRStopLoss ? CalculateATRPoints() : StopLoss_Pips * 10;
-   double tpPoints = UseBacktestLots ? (BacktestRewardRisk * slPoints) : TakeProfit_Pips * 10;
+   double rr       = UseBacktestLots ? BacktestRewardRisk : RewardRiskRatio;
+   double tpPoints = slPoints * rr;
 
    double sl = bid + slPoints * _Point;
    double tp = bid - tpPoints * _Point;
