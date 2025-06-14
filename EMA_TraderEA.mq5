@@ -96,7 +96,19 @@ int OnInit()
    int handle = FileOpen("FX_EMA_TradeLog.csv", FILE_WRITE | FILE_CSV | FILE_ANSI);
    if(handle != INVALID_HANDLE)
      {
-      FileWrite(handle, "Date", "Time", "Symbol", "Type", "Lots", "Price", "SL", "TP", "ATRUsed", "Result");
+      FileWrite(handle,
+               "DateServer",
+               "TimeServer",
+               "DateBNE",
+               "TimeBNE",
+               "Symbol",
+               "Type",
+               "Lots",
+               "Price",
+               "SL",
+               "TP",
+               "ATRUsed",
+               "Result");
       FileClose(handle);
      }
    else
@@ -181,14 +193,31 @@ double CalculateLotSize()
 //+------------------------------------------------------------------+
 void LogTrade(string type, double lots, double price, double sl, double tp, string result)
   {
-   string dateStr = TimeToString(TimeCurrent(), TIME_DATE);
-   string timeStr = TimeToString(TimeCurrent(), TIME_SECONDS);
+   string dateStrServer = TimeToString(TimeCurrent(), TIME_DATE);
+   string timeStrServer = TimeToString(TimeCurrent(), TIME_SECONDS);
+
+   datetime utc      = TimeGMT();
+   datetime bneTime  = utc + 10 * 3600; // UTC+10 for Brisbane
+   string dateStrBNE = TimeToString(bneTime, TIME_DATE);
+   string timeStrBNE = TimeToString(bneTime, TIME_SECONDS);
 
    int handle = FileOpen("FX_EMA_TradeLog.csv", FILE_READ | FILE_WRITE | FILE_CSV | FILE_ANSI);
    if(handle != INVALID_HANDLE)
      {
       FileSeek(handle, 0, SEEK_END);
-      FileWrite(handle, dateStr, timeStr, currentSymbol, type, lots, price, sl, tp, UseATRStopLoss, result);
+      FileWrite(handle,
+                dateStrServer,
+                timeStrServer,
+                dateStrBNE,
+                timeStrBNE,
+                currentSymbol,
+                type,
+                lots,
+                price,
+                sl,
+                tp,
+                UseATRStopLoss,
+                result);
       FileClose(handle);
      }
    else
