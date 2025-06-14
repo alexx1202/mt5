@@ -37,7 +37,7 @@ input int    NyCloseBNE      = 7;      // NY close / Asian open (Brisbane)
 bool   eaEnabled      = true;     // is the EA currently active?
 string currentSymbol;             // symbol we trade on
 string lastStatus     = "";       // message shown on chart
-string logFilePath;               // full path to trade log
+bool   inRestricted   = false;    // are we in the restricted time?
 
 //+------------------------------------------------------------------+
 //| Check if current time is in the restricted window                |
@@ -324,7 +324,16 @@ void ExecuteTrade()
   {
   if(!eaEnabled)
       return;
-   if(TradingTimeRestricted())
+   bool nowRestricted = TradingTimeRestricted();
+   if(nowRestricted != inRestricted)
+     {
+      inRestricted = nowRestricted;
+      if(nowRestricted)
+         Print("EA has entered the restricted trading time block. Trading paused.");
+      else
+         Print("Restricted trading time finished. Trading can resume.");
+     }
+   if(nowRestricted)
      {
       lastStatus = "session pause";
       return;
