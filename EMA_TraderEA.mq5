@@ -14,7 +14,7 @@ CiMA    maFast;
 
 //--- EMA settings
 input int    FastEMA_Period      = 9;    // period for the fast EMA
-input double TouchThreshold      = 0.5;  // distance in pips for near-EMA entries
+input double TouchThreshold      = 5.0;  // distance in points for near-EMA entries
 
 //--- risk settings
 input double MinRiskAUD          = 10.0; // how much money to risk per trade
@@ -151,7 +151,7 @@ void CheckBuy(double ema)
   {
    double bid = SymbolInfoDouble(currentSymbol, SYMBOL_BID);
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
-   double threshold = TouchThreshold * 10 * _Point;
+   double threshold = TouchThreshold * _Point;
 
    if(bid < ema - threshold || bid > ema + threshold)
       return; // price not close enough
@@ -193,7 +193,7 @@ void CheckSell(double ema)
   {
    double bid = SymbolInfoDouble(currentSymbol, SYMBOL_BID);
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
-   double threshold = TouchThreshold * 10 * _Point;
+   double threshold = TouchThreshold * _Point;
 
    if(ask < ema - threshold || ask > ema + threshold)
       return;
