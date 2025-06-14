@@ -89,6 +89,7 @@ int OnInit()
 
   //--- set log file path in MQL5\Files
   logFilePath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\FX_EMA_TradeLog.csv";
+  Print("Trade log will be saved to ", logFilePath);
 
   // create trade log file
   int handle = FileOpen("FX_EMA_TradeLog.csv", FILE_WRITE | FILE_CSV | FILE_ANSI);
@@ -111,12 +112,19 @@ int OnInit()
       // save another copy of the log in the terminal's Files folder
       // copy the log file to the terminal's Files folder
       // the 0 flags mean the files are not in the common directory
-      FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0);
+      if(!FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0))
+         Print("Warning: could not copy log file to ", logFilePath);
     }
   else
       Print("Failed to open trade log file.");
 
-   Print("=== EA INITIALIZED ===");
+  inRestricted = TradingTimeRestricted();
+  if(inRestricted)
+     Print("EA started during restricted trading time. Trading paused.");
+  else
+     Print("EA started outside restricted trading time.");
+
+  Print("=== EA INITIALIZED ===");
    Comment("EA ENABLED");
    return(INIT_SUCCEEDED);
   }
@@ -335,9 +343,9 @@ void ExecuteTrade()
      {
       inRestricted = nowRestricted;
       if(nowRestricted)
-         Print("EA has entered the restricted trading time block. Trading paused.");
+         Print("EA has entered the restricted trading time block at ", TimeToString(TimeCurrent(), TIME_SECONDS));
       else
-         Print("Restricted trading time finished. Trading can resume.");
+         Print("Restricted trading time finished at ", TimeToString(TimeCurrent(), TIME_SECONDS), ". Trading can resume.");
      }
    if(nowRestricted)
      {
