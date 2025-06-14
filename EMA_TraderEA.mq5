@@ -12,33 +12,26 @@
 CTrade  trade;
 CiMA    maFast;
 
-//--- EMA settings
-input int    FastEMA_Period      = 9;    // period for the fast EMA
-input double TouchPercent        = 0.005; // distance from EMA in percent
+//--- live trading settings
+input int    EmaPeriod       = 9;      // fast EMA period
+input double TouchPct        = 0.005;  // allowed distance from EMA
+input double RiskAUD         = 10.0;   // money to risk per trade
+                                        // EA keeps risk within ±1 AUD
+input int    StopPips        = 15;     // fixed stop loss in pips
+input int    TakePips        = 30;     // fixed take profit (if RRTarget==0)
+input double RRTarget        = 2.0;    // reward:risk ratio
+input bool   UseAtrSL        = false;  // use ATR stop loss
+input double AtrMult         = 1.5;    // ATR multiplier
+input uint   MagicID         = 20240405; // unique ID for this EA
 
-//--- risk settings
-input double MinRiskAUD          = 10.0; // how much money to risk per trade
-                                       // EA enforces risk within ±1 AUD of
-                                       // this value
-input int    StopLoss_Pips       = 15;   // fixed stop loss in pips
-input int    TakeProfit_Pips     = 30;   // fixed take profit in pips (unused when RewardRiskRatio > 0)
-input double RewardRiskRatio     = 2.0;  // reward:risk ratio for trades
+//--- backtest only settings
+input bool   TestUseLot      = false;  // use fixed lot when backtesting
+input double TestLotSize     = 0.01;   // fixed lot size in backtest
+input double TestRR          = 2.0;    // reward:risk ratio in backtest
 
-//--- advanced options
-input bool   UseATRStopLoss      = false;// use ATR-based stop instead
-input double ATRMultiplier       = 1.5;  // ATR multiplier when ATR stop is on
-input uint   ExpertMagic         = 20240405; // unique ID for this EA
-
-//--- backtest settings
-input bool   UseBacktestLots     = false;// use fixed lot in backtest
-input double BacktestLotSize     = 0.01; // fixed lot size for backtest
-input double BacktestRewardRisk  = 2.0;  // reward:risk ratio in backtest
-
-//--- hotkey
-input bool   EnableHotkey        = true; // press J to toggle the EA
-
-//--- session settings
-input int    NYCloseBrisbane     = 7;    // New York close / Asian open (Brisbane time)
+//--- other options
+input bool   UseHotkey       = true;   // press J to toggle the EA
+input int    NyCloseBNE      = 7;      // NY close / Asian open (Brisbane)
 
 //--- global variables
 bool   eaEnabled      = true;     // is the EA currently active?
@@ -57,8 +50,8 @@ bool TradingTimeRestricted()
    if(hourBNE >= 24)
       hourBNE -= 24;
 
-   int start = (NYCloseBrisbane - 3 + 24) % 24;  // 3h before NY close
-   int end   = (NYCloseBrisbane + 3) % 24;       // 3h after
+   int start = (NyCloseBNE - 3 + 24) % 24;  // 3h before NY close
+   int end   = (NyCloseBNE + 3) % 24;       // 3h after
 
    if(start < end)
       return(hourBNE >= start && hourBNE < end);
@@ -74,22 +67,22 @@ int OnInit()
    currentSymbol = _Symbol;
 
    // validate inputs so they are sensible
-   if(FastEMA_Period <= 0 || StopLoss_Pips <= 0 || RewardRiskRatio <= 0 ||
-      TouchPercent <= 0)
+   if(EmaPeriod <= 0 || StopPips <= 0 || RRTarget <= 0 ||
+      TouchPct <= 0)
     {
       Print("Error: input values must be greater than zero.");
       return(INIT_PARAMETERS_INCORRECT);
      }
 
    // create EMA indicator
-   if(!maFast.Create(currentSymbol, PERIOD_CURRENT, FastEMA_Period, 0, MODE_EMA, PRICE_CLOSE))
+   if(!maFast.Create(currentSymbol, PERIOD_CURRENT, EmaPeriod, 0, MODE_EMA, PRICE_CLOSE))
      {
       Print("Failed to create EMA. Error ", GetLastError());
       return(INIT_FAILED);
      }
 
    maFast.Refresh();
-   trade.SetExpertMagicNumber(ExpertMagic);
+   trade.SetExpertMagicNumber(MagicID);
    trade.SetTypeFilling(ORDER_FILLING_FOK);
 
    // create trade log file
@@ -127,10 +120,10 @@ int CalculateATRPoints()
    double atr[];
    if(CopyBuffer(iATR(currentSymbol, PERIOD_CURRENT, 14), 0, 0, 1, atr) > 0)
      {
-      return(int)MathRound((atr[0] * ATRMultiplier) / _Point);
+      return(int)MathRound((atr[0] * AtrMult) / _Point);
      }
    Print("ATR fetch failed—using fixed stop loss.");
-   return(StopLoss_Pips * 10); // convert pips to points
+   return(StopPips * 10); // convert pips to points
   }
 
 //+------------------------------------------------------------------+
@@ -138,8 +131,8 @@ int CalculateATRPoints()
 //+------------------------------------------------------------------+
 double CalculateLotSize()
   {
-   if(UseBacktestLots)
-      return(BacktestLotSize);
+   if(TestUseLot)
+      return(TestLotSize);
 
    double tickValue = SymbolInfoDouble(currentSymbol, SYMBOL_TRADE_TICK_VALUE);
    double tickSize  = SymbolInfoDouble(currentSymbol, SYMBOL_TRADE_TICK_SIZE);
@@ -152,9 +145,9 @@ double CalculateLotSize()
 
    double pipSize  = MathPow(10.0, -digits + 1);
    double pipValue = tickValue * pipSize / tickSize;
-   double slPips   = UseATRStopLoss ? (double)CalculateATRPoints() / 10.0 : StopLoss_Pips;
+   double slPips   = UseAtrSL ? (double)CalculateATRPoints() / 10.0 : StopPips;
    double riskPerLot = slPips * pipValue;
-   double rawLots = MinRiskAUD / riskPerLot;
+   double rawLots = RiskAUD / riskPerLot;
 
    double minLot  = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_MIN);
    double maxLot  = SymbolInfoDouble(currentSymbol, SYMBOL_VOLUME_MAX);
@@ -168,8 +161,8 @@ double CalculateLotSize()
    double finalRisk = lots * riskPerLot;
 
    // calculate allowed risk range of ±1 AUD around the requested amount
-   double lowerRisk = MinRiskAUD - 1.0;
-   double upperRisk = MinRiskAUD + 1.0;
+   double lowerRisk = RiskAUD - 1.0;
+   double upperRisk = RiskAUD + 1.0;
 
    // adjust lots if risk is outside the allowed range
    if(finalRisk > upperRisk)
@@ -218,7 +211,7 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
                 price,
                 sl,
                 tp,
-                UseATRStopLoss,
+                UseAtrSL,
                 result);
       FileClose(handle);
      }
@@ -233,7 +226,7 @@ void CheckBuy(double ema)
   {
    double bid = SymbolInfoDouble(currentSymbol, SYMBOL_BID);
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
-   double threshold = ema * (TouchPercent / 100.0);
+   double threshold = ema * (TouchPct / 100.0);
 
    // ensure price is close enough to the EMA
    if(ask < ema - threshold || ask > ema + threshold)
@@ -249,8 +242,8 @@ void CheckBuy(double ema)
    if(curLow > ema)
       return;
 
-   double slPoints = UseATRStopLoss ? CalculateATRPoints() : StopLoss_Pips * 10;
-   double rr       = UseBacktestLots ? BacktestRewardRisk : RewardRiskRatio;
+   double slPoints = UseAtrSL ? CalculateATRPoints() : StopPips * 10;
+   double rr       = TestUseLot ? TestRR : RRTarget;
    double tpPoints = slPoints * rr;
 
    double sl = ask - slPoints * _Point;
@@ -279,7 +272,7 @@ void CheckSell(double ema)
   {
    double bid = SymbolInfoDouble(currentSymbol, SYMBOL_BID);
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
-   double threshold = ema * (TouchPercent / 100.0);
+   double threshold = ema * (TouchPct / 100.0);
 
    // ensure price is close enough to the EMA
    if(bid < ema - threshold || bid > ema + threshold)
@@ -295,8 +288,8 @@ void CheckSell(double ema)
    if(curHigh < ema)
       return;
 
-   double slPoints = UseATRStopLoss ? CalculateATRPoints() : StopLoss_Pips * 10;
-   double rr       = UseBacktestLots ? BacktestRewardRisk : RewardRiskRatio;
+   double slPoints = UseAtrSL ? CalculateATRPoints() : StopPips * 10;
+   double rr       = TestUseLot ? TestRR : RRTarget;
    double tpPoints = slPoints * rr;
 
    double sl = bid + slPoints * _Point;
@@ -332,7 +325,7 @@ void ExecuteTrade()
      }
   if(PositionSelect(currentSymbol))
       return; // already have a position on this symbol
-   if(Bars(currentSymbol, PERIOD_CURRENT) < FastEMA_Period)
+   if(Bars(currentSymbol, PERIOD_CURRENT) < EmaPeriod)
       return; // not enough bars to calculate EMA
 
    maFast.Refresh();
@@ -358,7 +351,7 @@ void OnTick()
 //+------------------------------------------------------------------+
 void OnChartEvent(const int id,const long &lparam,const double &dparam,const string &sparam)
   {
-   if(EnableHotkey && id == CHARTEVENT_KEYDOWN && lparam == 74) // J key
+   if(UseHotkey && id == CHARTEVENT_KEYDOWN && lparam == 74) // J key
      {
       eaEnabled = !eaEnabled;
       lastStatus = eaEnabled ? "enabled" : "disabled";
