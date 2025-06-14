@@ -13,6 +13,7 @@ CTrade  trade;
 CiMA    maFast;
 
 //--- live trading options
+input group "Live trading options";
 input int    FastEMA     = 9;      // fast EMA period
 input double NearPct     = 0.005;  // allowed distance from EMA
 input double RiskAUD     = 10.0;   // risk per trade in AUD
@@ -24,13 +25,16 @@ input double AtrFactor   = 1.5;    // ATR multiplier
 input uint   MagicNum    = 20240405; // unique EA ID
 
 //--- backtest options
+input group "Backtest options";
 input bool   FixLotTest  = false;  // use fixed lot when testing
 input double TestLot     = 0.01;   // fixed lot size for tests
 input double TestRR      = 2.0;    // test reward:risk ratio
 
 //--- misc options
+input group "Misc options";
 input bool   Hotkey      = true;   // press J to toggle the EA
 input int    NyCloseBne  = 7;      // NY close / Asian open (Brisbane)
+input group "";
 
 //--- global variables
 bool   eaEnabled      = true;     // is the EA currently active?
