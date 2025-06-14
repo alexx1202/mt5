@@ -44,6 +44,16 @@ bool   inRestricted   = false;    // are we in the restricted time?
 string logFilePath = "";          // where to save the trade log
 
 //+------------------------------------------------------------------+
+//| Helper to extract hour from datetime                             |
+//+------------------------------------------------------------------+
+int GetHour(datetime t)
+  {
+   MqlDateTime s;
+   TimeToStruct(t, s);
+   return(s.hour);
+  }
+
+//+------------------------------------------------------------------+
 //| Check if current time is in the restricted window                |
 //+------------------------------------------------------------------+
 bool TradingTimeRestricted()
@@ -53,7 +63,7 @@ bool TradingTimeRestricted()
    int offset      = (int)MathRound((double)(server - utc) / 3600.0); // +2 or +3
    // convert server time to Brisbane (UTC+10)
    datetime bneTime = server + (10 - offset) * 3600;
-   int hourBNE      = TimeHour(bneTime);
+   int hourBNE      = GetHour(bneTime);
 
    int start = (NyCloseBne - 3 + 24) % 24;  // 3h before NY close
    int end   = (NyCloseBne + 3) % 24;       // 3h after
