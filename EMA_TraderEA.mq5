@@ -131,13 +131,15 @@ double CalculateLotSize()
 
    double tickValue = SymbolInfoDouble(currentSymbol, SYMBOL_TRADE_TICK_VALUE);
    double tickSize  = SymbolInfoDouble(currentSymbol, SYMBOL_TRADE_TICK_SIZE);
+   int    digits    = (int)SymbolInfoInteger(currentSymbol, SYMBOL_DIGITS);
    if(tickValue <= 0 || tickSize <= 0)
      {
       Print("Invalid tick data.");
       return(0.0);
      }
 
-   double pipValue = tickValue / (tickSize / _Point);
+   double pipSize  = MathPow(10.0, -digits + 1);
+   double pipValue = tickValue * pipSize / tickSize;
    double slPips   = UseATRStopLoss ? (double)CalculateATRPoints() / 10.0 : StopLoss_Pips;
    double riskPerLot = slPips * pipValue;
    double rawLots = MinRiskAUD / riskPerLot;
