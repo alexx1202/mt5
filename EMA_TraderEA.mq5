@@ -91,7 +91,7 @@ int OnInit()
   trade.SetExpertMagicNumber(MagicNum);
   trade.SetTypeFilling(ORDER_FILLING_FOK);
 
-  //--- set log file path in MQL5\Files
+  //--- set log file path in MQL5\\Files so it's easy to locate
   logFilePath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\FX_EMA_TradeLog.csv";
   Print("Trade log will be saved to ", logFilePath);
 
@@ -114,7 +114,6 @@ int OnInit()
                "Result");
       FileClose(handle);
       // save another copy of the log in the terminal's Files folder
-      // copy the log file to the terminal's Files folder
       // the 0 flags mean the files are not in the common directory
       if(!FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0))
          Print("Warning: could not copy log file to ", logFilePath);
@@ -236,7 +235,6 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
                 result);
       FileClose(handle);
       // save another copy of the log in the terminal's Files folder
-      // copy the updated log so it's available in the terminal folder
       FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0);
     }
   else
@@ -390,6 +388,15 @@ void OnChartEvent(const int id,const long &lparam,const double &dparam,const str
       lastStatus = eaEnabled ? "enabled" : "disabled";
       Print("EA ", (eaEnabled ? "ENABLED" : "DISABLED"));
      }
+  }
+
+//+------------------------------------------------------------------+
+//| Cleanup on exit                                                  |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+  {
+   // copy the log once more when the EA stops
+   FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0);
   }
 
 //+------------------------------------------------------------------+
