@@ -44,6 +44,7 @@ input int    NYCloseBrisbane     = 7;    // New York close / Asian open (Brisban
 bool   eaEnabled      = true;     // is the EA currently active?
 string currentSymbol;             // symbol we trade on
 string lastStatus     = "";       // message shown on chart
+string logFilePath;               // full path to trade log
 
 //+------------------------------------------------------------------+
 //| Check if current time is in the restricted window                |
@@ -88,14 +89,17 @@ int OnInit()
       return(INIT_FAILED);
      }
 
-   maFast.Refresh();
-   trade.SetExpertMagicNumber(ExpertMagic);
-   trade.SetTypeFilling(ORDER_FILLING_FOK);
+  maFast.Refresh();
+  trade.SetExpertMagicNumber(ExpertMagic);
+  trade.SetTypeFilling(ORDER_FILLING_FOK);
 
-   // create trade log file
-   int handle = FileOpen("FX_EMA_TradeLog.csv", FILE_WRITE | FILE_CSV | FILE_ANSI);
-   if(handle != INVALID_HANDLE)
-     {
+  //--- set log file path in MQL5\Files
+  logFilePath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\FX_EMA_TradeLog.csv";
+
+  // create trade log file
+  int handle = FileOpen("FX_EMA_TradeLog.csv", FILE_WRITE | FILE_CSV | FILE_ANSI);
+  if(handle != INVALID_HANDLE)
+    {
       FileWrite(handle,
                "DateServer",
                "TimeServer",
@@ -110,8 +114,9 @@ int OnInit()
                "ATRUsed",
                "Result");
       FileClose(handle);
-     }
-   else
+      FileCopy("FX_EMA_TradeLog.csv", logFilePath, FILE_REWRITE); // keep copy in Files folder
+    }
+  else
       Print("Failed to open trade log file.");
 
    Print("=== EA INITIALIZED ===");
@@ -203,9 +208,9 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
    string dateStrBNE = TimeToString(bneTime, TIME_DATE);
    string timeStrBNE = TimeToString(bneTime, TIME_SECONDS);
 
-   int handle = FileOpen("FX_EMA_TradeLog.csv", FILE_READ | FILE_WRITE | FILE_CSV | FILE_ANSI);
-   if(handle != INVALID_HANDLE)
-     {
+  int handle = FileOpen("FX_EMA_TradeLog.csv", FILE_READ | FILE_WRITE | FILE_CSV | FILE_ANSI);
+  if(handle != INVALID_HANDLE)
+    {
       FileSeek(handle, 0, SEEK_END);
       FileWrite(handle,
                 dateStrServer,
@@ -221,8 +226,9 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
                 UseATRStopLoss,
                 result);
       FileClose(handle);
-     }
-   else
+      FileCopy("FX_EMA_TradeLog.csv", logFilePath, FILE_REWRITE); // keep copy in Files folder
+    }
+  else
       Print("Failed to log trade.");
   }
 
