@@ -38,6 +38,7 @@ bool   eaEnabled      = true;     // is the EA currently active?
 string currentSymbol;             // symbol we trade on
 string lastStatus     = "";       // message shown on chart
 bool   inRestricted   = false;    // are we in the restricted time?
+string logFilePath = "";          // where to save the trade log
 
 //+------------------------------------------------------------------+
 //| Check if current time is in the restricted window                |
@@ -83,7 +84,8 @@ int OnInit()
      }
 
   maFast.Refresh();
-  trade.SetExpertMagicNumber(ExpertMagic);
+  // use MagicID input for unique identifier
+  trade.SetExpertMagicNumber(MagicID);
   trade.SetTypeFilling(ORDER_FILLING_FOK);
 
   //--- set log file path in MQL5\Files
@@ -107,7 +109,8 @@ int OnInit()
                "ATRUsed",
                "Result");
       FileClose(handle);
-      FileCopy("FX_EMA_TradeLog.csv", logFilePath, FILE_REWRITE); // keep copy in Files folder
+      // save another copy of the log in the terminal's Files folder
+      FileCopy("FX_EMA_TradeLog.csv", logFilePath);
     }
   else
       Print("Failed to open trade log file.");
@@ -219,7 +222,8 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
                 UseAtrSL,
                 result);
       FileClose(handle);
-      FileCopy("FX_EMA_TradeLog.csv", logFilePath, FILE_REWRITE); // keep copy in Files folder
+      // save another copy of the log in the terminal's Files folder
+      FileCopy("FX_EMA_TradeLog.csv", logFilePath);
     }
   else
       Print("Failed to log trade.");
