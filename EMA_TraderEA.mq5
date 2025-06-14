@@ -37,10 +37,34 @@ input double BacktestRewardRisk  = 2.0;  // reward:risk ratio in backtest
 //--- hotkey
 input bool   EnableHotkey        = true; // press J to toggle the EA
 
+//--- session settings
+input int    NYCloseBrisbane     = 7;    // New York close / Asian open (Brisbane time)
+
 //--- global variables
 bool   eaEnabled      = true;     // is the EA currently active?
 string currentSymbol;             // symbol we trade on
 string lastStatus     = "";       // message shown on chart
+
+//+------------------------------------------------------------------+
+//| Check if current time is in the restricted window                |
+//+------------------------------------------------------------------+
+bool TradingTimeRestricted()
+  {
+   datetime utc = TimeGMT();
+   MqlDateTime dt;
+   TimeToStruct(utc, dt);
+   int hourBNE = dt.hour + 10;  // convert UTC to Brisbane (UTC+10)
+   if(hourBNE >= 24)
+      hourBNE -= 24;
+
+   int start = (NYCloseBrisbane - 3 + 24) % 24;  // 3h before NY close
+   int end   = (NYCloseBrisbane + 3) % 24;       // 3h after
+
+   if(start < end)
+      return(hourBNE >= start && hourBNE < end);
+   else
+      return(hourBNE >= start || hourBNE < end);
+  }
 
 //+------------------------------------------------------------------+
 //| Initialization                                                   |
@@ -262,9 +286,14 @@ void CheckSell(double ema)
 //+------------------------------------------------------------------+
 void ExecuteTrade()
   {
-   if(!eaEnabled)
+  if(!eaEnabled)
       return;
-   if(PositionSelect(currentSymbol))
+   if(TradingTimeRestricted())
+     {
+      lastStatus = "session pause";
+      return;
+     }
+  if(PositionSelect(currentSymbol))
       return; // already have a position on this symbol
    if(Bars(currentSymbol, PERIOD_CURRENT) < FastEMA_Period)
       return; // not enough bars to calculate EMA
