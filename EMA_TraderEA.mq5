@@ -34,6 +34,7 @@ input double TestRR      = 2.0;    // test reward:risk ratio
 input group "Misc options";
 input bool   Hotkey      = true;   // press J to toggle the EA
 input int    NyCloseBne  = 7;      // NY close / Asian open (Brisbane)
+input int    ServerGMT   = 3;      // Pepperstone server GMT offset (+2 when DST off)
 input group "";
 
 //--- global variables
@@ -59,8 +60,8 @@ int GetHour(datetime t)
 bool TradingTimeRestricted()
   {
    datetime server = TimeTradeServer();
-   datetime utc    = TimeGMT();
-   int offset      = (int)MathRound((double)(server - utc) / 3600.0); // +2 or +3
+   // server GMT offset provided by user (e.g. 3 during US DST, 2 otherwise)
+   int offset      = ServerGMT;
    // convert server time to Brisbane (UTC+10)
    datetime bneTime = server + (10 - offset) * 3600;
    int hourBNE      = GetHour(bneTime);
@@ -223,8 +224,8 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
    string timeStrServer = TimeToString(TimeCurrent(), TIME_SECONDS);
 
    datetime server   = TimeTradeServer();
-   datetime utc      = TimeGMT();
-   int offset        = (int)MathRound((double)(server - utc) / 3600.0);
+   // use configured server GMT offset for consistency
+   int offset        = ServerGMT;
    datetime bneTime  = server + (10 - offset) * 3600; // convert to Brisbane
    string dateStrBNE = TimeToString(bneTime, TIME_DATE);
    string timeStrBNE = TimeToString(bneTime, TIME_SECONDS);
@@ -358,9 +359,12 @@ void ExecuteTrade()
      {
       inRestricted = nowRestricted;
       if(nowRestricted)
-         Print("EA has entered the restricted trading time block at ", TimeToString(TimeCurrent(), TIME_SECONDS));
+         Print("EA has entered the restricted trading time block at ",
+               TimeToString(TimeTradeServer(), TIME_SECONDS));
       else
-         Print("Restricted trading time finished at ", TimeToString(TimeCurrent(), TIME_SECONDS), ". Trading can resume.");
+         Print("Restricted trading time finished at ",
+               TimeToString(TimeTradeServer(), TIME_SECONDS),
+               ". Trading can resume.");
      }
    if(nowRestricted)
      {
