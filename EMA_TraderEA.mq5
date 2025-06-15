@@ -102,8 +102,8 @@ int OnInit()
   trade.SetExpertMagicNumber(MagicNum);
   trade.SetTypeFilling(ORDER_FILLING_FOK);
 
-  //--- set log file path in MQL5\\Files so it's easy to locate
-  logFilePath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\FX_EMA_TradeLog.csv";
+  //--- set log file path in the common tester folder (no agent subfolder)
+  logFilePath = TerminalInfoString(TERMINAL_COMMONDATA_PATH) + "\\MQL5\\Files\\FX_EMA_TradeLog.csv";
   Print("Trade log will be saved to ", logFilePath);
 
   // create trade log file
@@ -124,10 +124,8 @@ int OnInit()
                "ATRUsed",
                "Result");
       FileClose(handle);
-      // save another copy of the log in the terminal's Files folder
-      // the 0 flags mean the files are not in the common directory
-      // copy the initial log to the common folder
-      if(!FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, FILE_COMMON))
+      // save another copy of the log in the tester's common Files folder
+      if(!FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0))
          Print("Warning: could not copy log file to ", logFilePath);
     }
   else
@@ -248,7 +246,7 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
                 AtrSL,
                 result);
       FileClose(handle);
-      // save another copy of the log in the terminal's Files folder
+      // save another copy of the log in the tester's common Files folder
       FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0);
     }
   else
