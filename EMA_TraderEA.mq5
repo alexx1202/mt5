@@ -42,7 +42,6 @@ bool   eaEnabled      = true;     // is the EA currently active?
 string currentSymbol;             // symbol we trade on
 string lastStatus     = "";       // message shown on chart
 bool   inRestricted   = false;    // are we in the restricted time?
-string logFilePath = "";          // where to save the trade log
 
 //+------------------------------------------------------------------+
 //| Helper to extract hour from datetime                             |
@@ -102,9 +101,6 @@ int OnInit()
   trade.SetExpertMagicNumber(MagicNum);
   trade.SetTypeFilling(ORDER_FILLING_FOK);
 
-  //--- set log file path in the common tester folder (no agent subfolder)
-  logFilePath = TerminalInfoString(TERMINAL_COMMONDATA_PATH) + "\\MQL5\\Files\\FX_EMA_TradeLog.csv";
-  Print("Trade log will be saved to ", logFilePath);
 
   // create trade log file
   int handle = FileOpen("FX_EMA_TradeLog.csv", FILE_WRITE | FILE_CSV | FILE_ANSI);
@@ -124,9 +120,7 @@ int OnInit()
                "ATRUsed",
                "Result");
       FileClose(handle);
-      // save another copy of the log in the tester's common Files folder
-      if(!FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0))
-         Print("Warning: could not copy log file to ", logFilePath);
+      // trade log created successfully
     }
   else
       Print("Failed to open trade log file.");
@@ -246,8 +240,7 @@ void LogTrade(string type, double lots, double price, double sl, double tp, stri
                 AtrSL,
                 result);
       FileClose(handle);
-      // save another copy of the log in the tester's common Files folder
-      FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0);
+      // record added to trade log
     }
   else
       Print("Failed to log trade.");
@@ -405,13 +398,3 @@ void OnChartEvent(const int id,const long &lparam,const double &dparam,const str
      }
   }
 
-//+------------------------------------------------------------------+
-//| Cleanup on exit                                                  |
-//+------------------------------------------------------------------+
-void OnDeinit(const int reason)
-  {
-   // copy the log once more when the EA stops
-   FileCopy("FX_EMA_TradeLog.csv", 0, logFilePath, 0);
-  }
-
-//+------------------------------------------------------------------+
