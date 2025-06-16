@@ -171,16 +171,16 @@ void PerformScan(const string folderPath, const string timestamp)
             // Always use 1-minute bars to evaluate the requested timeframe
             datetime endTime   = TimeCurrent();
             datetime startTime = endTime - PeriodSeconds(timeframes[j]);
-            MqlRates rates[];
-            int barCount = CopyRatesRange(symbol, PERIOD_M1, startTime, endTime, rates);
+            MqlRates ratesM1[];
+            int barCount = CopyRates(symbol, PERIOD_M1, startTime, endTime, ratesM1);
             if(barCount <= 0)
             {
                 Print("No M1 data for ", symbol, " on ", EnumToString(timeframes[j]));
             }
 
             // also load bar data for true high/low extremes
-            MqlRates rates[];
-            int rateCount = CopyRates(symbol, timeframes[j], startTime, endTime, rates);
+            MqlRates ratesTF[];
+            int rateCount = CopyRates(symbol, timeframes[j], startTime, endTime, ratesTF);
             if(rateCount <= 0)
             {
                 Print("No rates for ", symbol, " on ", EnumToString(timeframes[j]));
@@ -190,8 +190,8 @@ void PerformScan(const string folderPath, const string timestamp)
             double high = -DBL_MAX, low = DBL_MAX;
             for(int k = 0; k < rateCount; k++)
             {
-                if(rates[k].high > high) high = rates[k].high;
-                if(rates[k].low  < low)  low  = rates[k].low;
+                if(ratesTF[k].high > high) high = ratesTF[k].high;
+                if(ratesTF[k].low  < low)  low  = ratesTF[k].low;
             }
             double rangePercent = 0.0;
             if(low < DBL_MAX && high > -DBL_MAX && bidPrice > 0.0)
@@ -202,8 +202,8 @@ void PerformScan(const string folderPath, const string timestamp)
             double startPrice = 0.0, endPrice = 0.0;
             if(barCount >= 2)
             {
-                startPrice = rates[0].close;
-                endPrice   = rates[barCount - 1].close;
+                startPrice = ratesM1[0].close;
+                endPrice   = ratesM1[barCount - 1].close;
             }
             double change = 0.0;
             if(startPrice > 0.0)
@@ -264,8 +264,8 @@ double CalculateBarCorrelation(const string symbolA, const string symbolB, const
     datetime endTime   = TimeCurrent();
     datetime startTime = endTime - PeriodSeconds(tf);
     MqlRates ratesA[], ratesB[];
-    int countA = CopyRatesRange(symbolA, PERIOD_M1, startTime, endTime, ratesA);
-    int countB = CopyRatesRange(symbolB, PERIOD_M1, startTime, endTime, ratesB);
+    int countA = CopyRates(symbolA, PERIOD_M1, startTime, endTime, ratesA);
+    int countB = CopyRates(symbolB, PERIOD_M1, startTime, endTime, ratesB);
     int minCount = MathMin(countA, countB);
     if(minCount < 10)
         return 0.0;
