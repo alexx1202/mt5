@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
-//|                                                FXScanner.mq5    |
-//|           Integrated FX Scanner with Spread Calculation         |
+//|                                                MT5Scanner.mq5    |
+//|           Integrated MT5 Scanner with Spread Calculation         |
 //+------------------------------------------------------------------+
 #property script_show_inputs
 #property strict
