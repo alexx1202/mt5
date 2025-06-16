@@ -177,13 +177,20 @@ void PerformScan(const string folderPath, const string timestamp)
                 Print("No ticks for ", symbol, " on ", EnumToString(timeframes[j]));
             }
 
+            // also load bar data for true high/low extremes
+            MqlRates rates[];
+            int rateCount = CopyRates(symbol, timeframes[j], startTime, endTime, rates);
+            if(rateCount <= 0)
+            {
+                Print("No rates for ", symbol, " on ", EnumToString(timeframes[j]));
+            }
+
             // Range calculation
             double high = -DBL_MAX, low = DBL_MAX;
-            for(int k = 0; k < tickCount; k++)
+            for(int k = 0; k < rateCount; k++)
             {
-                double mid = (ticks[k].ask + ticks[k].bid) / 2.0;
-                if(mid > high) high = mid;
-                if(mid < low)  low  = mid;
+                if(rates[k].high > high) high = rates[k].high;
+                if(rates[k].low  < low)  low  = rates[k].low;
             }
             double rangePercent = 0.0;
             if(low < DBL_MAX && high > -DBL_MAX && bidPrice > 0.0)
