@@ -139,6 +139,14 @@ void PerformScan(const string folderPath, const string timestamp)
         if(ShowDebugMessages)
             PrintFormat("[%3d%%] Processing symbol (%d/%d): %s", progress, i+1, symbols.Total(), symbol);
 
+        // Ensure the symbol is subscribed so CopyRates can load history
+        if(!SymbolSelect(symbol, true))
+        {
+            Print("Failed to select symbol ", symbol);
+            continue;
+        }
+        RefreshRates();
+
         // --- Swap information ---
         double swapLong, swapShort;
         if(!SymbolInfoDouble(symbol, SYMBOL_SWAP_LONG, swapLong) ||
