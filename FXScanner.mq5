@@ -145,7 +145,8 @@ void PerformScan(const string folderPath, const string timestamp)
             Print("Failed to select symbol ", symbol);
             continue;
         }
-        RefreshRates();
+        // RefreshRates() is an MQL4 function and not required here.
+        // The required price data is retrieved using SymbolInfo* and CopyRates.
 
         // --- Swap information ---
         double swapLong, swapShort;
