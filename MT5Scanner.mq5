@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //|                                                MT5Scanner.mq5    |
-//|           Integrated MT5 Scanner with Spread Calculation         |
+//|     Simple MT5 Scanner for Spread, Swap and USDX Correlation    |
 //+------------------------------------------------------------------+
 #property script_show_inputs
 #property strict
@@ -60,7 +60,7 @@ string GetTimestampString()
 void OnStart()
 {
     if(ShowDebugMessages)
-        Print("Starting FX Scanner Script v1.36 (M1 Bars for All Timeframes + USDX Correlation + Integrated Spread)");
+        Print("Starting FX Scanner Script v1.36 (Spread, Swap and USDX Correlation)");
 
     // Files are always stored relative to the terminal's MQL5\Files folder.
     // Do not use an absolute path here, otherwise FileOpen() will fail.
@@ -101,35 +101,25 @@ void PerformScan(const string folderPath, const string timestamp)
 
     // Open all required CSV files
     string prefix = timestamp + "-" + FilePrefix;
-    int swapHandle   = FileOpen(folderPath + prefix + "Swap.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
-    int rangeHandle  = FileOpen(folderPath + prefix + "Range.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
-    int changeHandle = FileOpen(folderPath + prefix + "Change.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
-    int corrHandle   = FileOpen(folderPath + prefix + "USDXCorrelation.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
-    if(swapHandle < 0 || rangeHandle < 0 || changeHandle < 0 || corrHandle < 0)
+    int swapHandle = FileOpen(folderPath + prefix + "Swap.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
+    int corrHandle = FileOpen(folderPath + prefix + "USDXCorrelation.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
+    if(swapHandle < 0 || corrHandle < 0)
     {
         Print("Failed to open output files. Error: ", GetLastError());
         if(swapHandle   >= 0) FileClose(swapHandle);
-        if(rangeHandle  >= 0) FileClose(rangeHandle);
-        if(changeHandle >= 0) FileClose(changeHandle);
         if(corrHandle   >= 0) FileClose(corrHandle);
         return;
     }
 
     // Write headers
     FileWriteString(swapHandle,  "Symbol,SwapLong,SwapShort\r\n");
-    FileWriteString(rangeHandle, "Symbol,");
-    FileWriteString(changeHandle,"Symbol,");
     FileWriteString(corrHandle,  "Symbol,");
     for(int j = 0; j < ArraySize(timeframes); j++)
     {
         string tfStr = EnumToString(timeframes[j]);
-        FileWriteString(rangeHandle,  tfStr + ",");
-        FileWriteString(changeHandle, tfStr + ",");
-        FileWriteString(corrHandle,   tfStr + ",");
+        FileWriteString(corrHandle, tfStr + ",");
     }
-    FileWriteString(rangeHandle,  "\r\n");
-    FileWriteString(changeHandle, "\r\n");
-    FileWriteString(corrHandle,   "\r\n");
+    FileWriteString(corrHandle, "\r\n");
 
     // Process each symbol
     for(int i = 0; i < symbols.Total(); i++)
@@ -161,20 +151,10 @@ void PerformScan(const string folderPath, const string timestamp)
                                                 NormalizeDouble(swapLong,4),
                                                 NormalizeDouble(swapShort,4)));
 
-        // Current price used for range calculations
-        double bidPrice;
-        if(!SymbolInfoDouble(symbol, SYMBOL_BID, bidPrice) || bidPrice <= 0.0)
-        {
-            Print("Invalid price for ", symbol);
-            bidPrice = 1.0; // Avoid division by zero
-        }
-
-        // Prepare lines for Range and Change CSVs
-        FileWriteString(rangeHandle,  symbol + ",");
-        FileWriteString(changeHandle, symbol + ",");
-
-        // --- Range, Change and Correlation ---
+        // Symbol header for correlation file
         FileWriteString(corrHandle, symbol + ",");
+
+        // --- Correlation ---
         for(int j = 0; j < ArraySize(timeframes); j++)
         {
             // Always use 1-minute bars to evaluate the requested timeframe
@@ -187,52 +167,16 @@ void PerformScan(const string folderPath, const string timestamp)
                 Print("No M1 data for ", symbol, " on ", EnumToString(timeframes[j]));
             }
 
-            // also load bar data for true high/low extremes
-            MqlRates ratesTF[];
-            int rateCount = CopyRates(symbol, timeframes[j], startTime, endTime, ratesTF);
-            if(rateCount <= 0)
-            {
-                Print("No rates for ", symbol, " on ", EnumToString(timeframes[j]));
-            }
-
-            // Range calculation
-            double high = -DBL_MAX, low = DBL_MAX;
-            for(int k = 0; k < rateCount; k++)
-            {
-                if(ratesTF[k].high > high) high = ratesTF[k].high;
-                if(ratesTF[k].low  < low)  low  = ratesTF[k].low;
-            }
-            double rangePercent = 0.0;
-            if(low < DBL_MAX && high > -DBL_MAX && bidPrice > 0.0)
-                rangePercent = (high - low) / bidPrice * 100.0;
-            FileWriteString(rangeHandle, StringFormat("%.4f%%,", NormalizeDouble(rangePercent,4)));
-
-            // Change calculation
-            double startPrice = 0.0, endPrice = 0.0;
-            if(barCount >= 2)
-            {
-                startPrice = ratesM1[0].close;
-                endPrice   = ratesM1[barCount - 1].close;
-            }
-            double change = 0.0;
-            if(startPrice > 0.0)
-                change = (endPrice - startPrice) / startPrice * 100.0;
-            FileWriteString(changeHandle, StringFormat("%.4f%%,", NormalizeDouble(change,4)));
-
             // Correlation with USDX symbol
             double correlation = NormalizeDouble(
                 CalculateBarCorrelation(symbol, usdxSymbol, timeframes[j]), 4);
             FileWriteString(corrHandle, StringFormat("%.4f,", correlation));
         }
-        FileWriteString(rangeHandle,  "\r\n");
-        FileWriteString(changeHandle, "\r\n");
         FileWriteString(corrHandle,   "\r\n");
     }
 
     // Close files
     FileClose(swapHandle);
-    FileClose(rangeHandle);
-    FileClose(changeHandle);
     FileClose(corrHandle);
 
     // Spread report uses a separate file
