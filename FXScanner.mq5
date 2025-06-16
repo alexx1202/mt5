@@ -23,7 +23,8 @@ input int    ScanIntervalMinutes = 30;         // Interval between scans
 string g_outputFolder = "";
 string g_fileTimestamp = "";                   // Timestamp used in file names
 
-// Timeframes for analysis can be adjusted as needed.
+// Timeframes for analysis. Metrics for these periods are computed
+// from 1-minute candles for maximum precision.
 ENUM_TIMEFRAMES timeframes[] =
 {
     PERIOD_M1, PERIOD_M5, PERIOD_M15, PERIOD_M30,
@@ -59,7 +60,7 @@ string GetTimestampString()
 void OnStart()
 {
     if(ShowDebugMessages)
-        Print("Starting FX Scanner Script v1.35 (All Tick-Based + USDX Correlation + Integrated Spread)");
+        Print("Starting FX Scanner Script v1.36 (M1 Bars for All Timeframes + USDX Correlation + Integrated Spread)");
 
     // Files are always stored relative to the terminal's MQL5\Files folder.
     // Do not use an absolute path here, otherwise FileOpen() will fail.
@@ -167,14 +168,14 @@ void PerformScan(const string folderPath, const string timestamp)
         FileWriteString(corrHandle, symbol + ",");
         for(int j = 0; j < ArraySize(timeframes); j++)
         {
-            // Load ticks for this timeframe only once
+            // Always use 1-minute bars to evaluate the requested timeframe
             datetime endTime   = TimeCurrent();
             datetime startTime = endTime - PeriodSeconds(timeframes[j]);
-            MqlTick ticks[];
-            int tickCount = CopyTicksRange(symbol, ticks, COPY_TICKS_ALL, startTime * 1000, endTime * 1000);
-            if(tickCount <= 0)
+            MqlRates rates[];
+            int barCount = CopyRatesRange(symbol, PERIOD_M1, startTime, endTime, rates);
+            if(barCount <= 0)
             {
-                Print("No ticks for ", symbol, " on ", EnumToString(timeframes[j]));
+                Print("No M1 data for ", symbol, " on ", EnumToString(timeframes[j]));
             }
 
             // also load bar data for true high/low extremes
@@ -199,10 +200,10 @@ void PerformScan(const string folderPath, const string timestamp)
 
             // Change calculation
             double startPrice = 0.0, endPrice = 0.0;
-            if(tickCount >= 2)
+            if(barCount >= 2)
             {
-                startPrice = (ticks[0].ask + ticks[0].bid) / 2.0;
-                endPrice   = (ticks[tickCount - 1].ask + ticks[tickCount - 1].bid) / 2.0;
+                startPrice = rates[0].close;
+                endPrice   = rates[barCount - 1].close;
             }
             double change = 0.0;
             if(startPrice > 0.0)
@@ -211,7 +212,7 @@ void PerformScan(const string folderPath, const string timestamp)
 
             // Correlation with USDX symbol
             double correlation = NormalizeDouble(
-                CalculateTickCorrelation(symbol, usdxSymbol, timeframes[j]), 4);
+                CalculateBarCorrelation(symbol, usdxSymbol, timeframes[j]), 4);
             FileWriteString(corrHandle, StringFormat("%.4f,", correlation));
         }
         FileWriteString(rangeHandle,  "\r\n");
@@ -256,15 +257,15 @@ int GetWatchlistSymbols(CArrayString &symbols)
 }
 
 //+------------------------------------------------------------------+
-//| Calculate tick-based correlation between two symbols             |
+//| Calculate correlation using M1 bars between two symbols          |
 //+------------------------------------------------------------------+
-double CalculateTickCorrelation(const string symbolA, const string symbolB, const ENUM_TIMEFRAMES tf)
+double CalculateBarCorrelation(const string symbolA, const string symbolB, const ENUM_TIMEFRAMES tf)
 {
     datetime endTime   = TimeCurrent();
     datetime startTime = endTime - PeriodSeconds(tf);
-    MqlTick ticksA[], ticksB[];
-    int countA = CopyTicksRange(symbolA, ticksA, COPY_TICKS_ALL, startTime * 1000, endTime * 1000);
-    int countB = CopyTicksRange(symbolB, ticksB, COPY_TICKS_ALL, startTime * 1000, endTime * 1000);
+    MqlRates ratesA[], ratesB[];
+    int countA = CopyRatesRange(symbolA, PERIOD_M1, startTime, endTime, ratesA);
+    int countB = CopyRatesRange(symbolB, PERIOD_M1, startTime, endTime, ratesB);
     int minCount = MathMin(countA, countB);
     if(minCount < 10)
         return 0.0;
@@ -272,8 +273,8 @@ double CalculateTickCorrelation(const string symbolA, const string symbolB, cons
     double sumX=0, sumY=0, sumX2=0, sumY2=0, sumXY=0;
     for(int i = 0; i < minCount; i++)
     {
-        double x = (ticksA[i].ask + ticksA[i].bid) / 2.0;
-        double y = (ticksB[i].ask + ticksB[i].bid) / 2.0;
+        double x = ratesA[i].close;
+        double y = ratesB[i].close;
         sumX  += x;
         sumY  += y;
         sumX2 += x * x;
