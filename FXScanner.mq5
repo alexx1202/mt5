@@ -280,6 +280,50 @@ double CalculateTickCorrelation(const string symbolA, const string symbolB, cons
 }
 
 //+------------------------------------------------------------------+
+//| Calculate bar-based correlation using M1 close returns            |
+//+------------------------------------------------------------------+
+double CalculateBarCorrelation(const string symbolA, const string symbolB, const int bars)
+{
+    MqlRates ratesA[], ratesB[];
+    int countA   = CopyRates(symbolA, PERIOD_M1, 0, bars, ratesA);
+    int countB   = CopyRates(symbolB, PERIOD_M1, 0, bars, ratesB);
+    int minCount = MathMin(countA, countB);
+    if(minCount < 2)
+        return 0.0;
+
+    int retCount = minCount - 1;
+    if(retCount < 10)
+        return 0.0;
+
+    double returnsA[], returnsB[];
+    ArrayResize(returnsA, retCount);
+    ArrayResize(returnsB, retCount);
+    for(int i = 1; i < minCount; i++)
+    {
+        double closePrevA = ratesA[i - 1].close;
+        double closePrevB = ratesB[i - 1].close;
+        returnsA[i - 1] = (ratesA[i].close - closePrevA) / closePrevA * 100.0;
+        returnsB[i - 1] = (ratesB[i].close - closePrevB) / closePrevB * 100.0;
+    }
+
+    double sumX=0, sumY=0, sumX2=0, sumY2=0, sumXY=0;
+    for(int i = 0; i < retCount; i++)
+    {
+        double x = returnsA[i];
+        double y = returnsB[i];
+        sumX  += x;
+        sumY  += y;
+        sumX2 += x * x;
+        sumY2 += y * y;
+        sumXY += x * y;
+    }
+
+    double num = retCount * sumXY - sumX * sumY;
+    double den = MathSqrt((retCount * sumX2 - sumX * sumX) * (retCount * sumY2 - sumY * sumY));
+    return (den != 0.0) ? num / den : 0.0;
+}
+
+//+------------------------------------------------------------------+
 //| Get number of significant decimals                              |
 //+------------------------------------------------------------------+
 int GetSignificantDecimals(double val)
