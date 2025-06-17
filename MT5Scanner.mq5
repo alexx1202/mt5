@@ -215,16 +215,24 @@ int GetWatchlistSymbols(CArrayString &symbols)
 double CalculateBarCorrelation(const string symbolA, const string symbolB, const ENUM_TIMEFRAMES tf)
 {
     datetime endTime   = TimeCurrent();
-    datetime startTime = endTime - PeriodSeconds(tf);
+    // Use multiple bars for a more stable correlation. Using around
+    // thirty bars generally balances accuracy with responsiveness to
+    // recent changes.
+    const int barsPerTf = 30;              // desired number of bars
+    datetime startTime = endTime - PeriodSeconds(tf) * barsPerTf;
     MqlRates ratesA[], ratesB[];
-    int countA = CopyRates(symbolA, PERIOD_M1, startTime, endTime, ratesA);
-    int countB = CopyRates(symbolB, PERIOD_M1, startTime, endTime, ratesB);
+    // Request data using the timeframe directly to avoid missing data
+    int countA = CopyRates(symbolA, tf, startTime, endTime, ratesA);
+    int countB = CopyRates(symbolB, tf, startTime, endTime, ratesB);
     int minCount = MathMin(countA, countB);
-    if(minCount < 10)
+
+    // Work with whatever number of bars are available up to barsPerTf
+    int barsToUse = MathMin(minCount, barsPerTf);
+    if(barsToUse < 2)
         return 0.0;
 
     double sumX=0, sumY=0, sumX2=0, sumY2=0, sumXY=0;
-    for(int i = 0; i < minCount; i++)
+    for(int i = 0; i < barsToUse; i++)
     {
         double x = ratesA[i].close;
         double y = ratesB[i].close;
@@ -235,8 +243,8 @@ double CalculateBarCorrelation(const string symbolA, const string symbolB, const
         sumXY += x * y;
     }
 
-    double num = minCount * sumXY - sumX * sumY;
-    double den = MathSqrt((minCount * sumX2 - sumX * sumX) * (minCount * sumY2 - sumY * sumY));
+    double num = barsToUse * sumXY - sumX * sumY;
+    double den = MathSqrt((barsToUse * sumX2 - sumX * sumX) * (barsToUse * sumY2 - sumY * sumY));
     return (den != 0.0) ? num / den : 0.0;
 }
 
