@@ -55,12 +55,51 @@ string GetTimestampString()
 }
 
 //+------------------------------------------------------------------+
+//| Wait for a file to be closed so it can be removed                 |
+//+------------------------------------------------------------------+
+bool WaitForFileClose(const string path)
+{
+    for(int i=0;i<10 && !IsStopped();i++)
+    {
+        int h=FileOpen(path, FILE_READ|FILE_WRITE|FILE_BIN);
+        if(h>=0)
+        {
+            FileClose(h);
+            return true;
+        }
+        Sleep(1000);
+    }
+    return false;
+}
+
+//+------------------------------------------------------------------+
+//| Delete CSV files from previous scans                              |
+//+------------------------------------------------------------------+
+void DeleteOldCsvFiles(const string folderPath)
+{
+    string name;
+    long search=FileFindFirst(folderPath+"*"+FilePrefix+"*.csv", name);
+    if(search==INVALID_HANDLE)
+        return;
+
+    SendNotification("Previous scan CSV files will be deleted. Please close them if they are open.");
+    do
+    {
+        string full=folderPath+name;
+        if(WaitForFileClose(full))
+            FileDelete(full);
+    }
+    while(FileFindNext(search,name));
+    FileFindClose(search);
+}
+
+//+------------------------------------------------------------------+
 //| Script entry point                                               |
 //+------------------------------------------------------------------+
 void OnStart()
 {
     if(ShowDebugMessages)
-        Print("Starting FX Scanner Script v1.36 (Spread, Swap and USDX Correlation)");
+        Print("Starting FX Scanner Script v1.37 (Spread, Swap and USDX Correlation)");
 
     // Files are always stored relative to the terminal's MQL5\Files folder.
     // Do not use an absolute path here, otherwise FileOpen() will fail.
@@ -71,6 +110,7 @@ void OnStart()
 
     while(!IsStopped())
     {
+        DeleteOldCsvFiles(g_outputFolder);
         g_fileTimestamp = GetTimestampString();
         if(ShowDebugMessages)
             Print("Saving reports to ", displayPath, " with timestamp prefix ", g_fileTimestamp);
