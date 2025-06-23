@@ -17,6 +17,7 @@
 input string FilePrefix        = "FX_Data_";   // Prefix for generated CSV files
 input string usdxSymbol        = "USDX.a";     // Symbol used to compare correlation
 input bool   ShowDebugMessages = true;         // Print progress information
+input bool   EnableNotifications = true;         // Show pop-ups and MetaTrader alerts
 input int    ScanIntervalMinutes = 30;         // Interval between scans
 
 // Relative path (inside MQL5/Files) where reports will be saved
@@ -82,7 +83,8 @@ void DeleteOldCsvFiles(const string folderPath)
     if(search==INVALID_HANDLE)
         return;
 
-    SendNotification("Previous scan CSV files will be deleted. Please close them if they are open.");
+    if(EnableNotifications)
+        SendNotification("Previous scan CSV files will be deleted. Please close them if they are open.");
     do
     {
         string full=folderPath+name;
@@ -234,8 +236,9 @@ void PerformScan(const string folderPath, const string timestamp)
     if(openRes <= 32)
         Print("Note: output written to ", fullFolder, " but folder could not be opened.");
 
-    //--- Simple Windows push notification
-    MessageBoxW(0, "FX Scanner complete!", "FXScanner", 0);
+    //--- Optional Windows push notification when finished
+    if(EnableNotifications)
+        MessageBoxW(0, "FX Scanner complete!", "FXScanner", 0);
 }
 
 //+------------------------------------------------------------------+
