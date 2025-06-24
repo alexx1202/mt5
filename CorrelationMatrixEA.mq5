@@ -25,7 +25,7 @@ int MessageBoxW(int hWnd,string text,string caption,int type);
 // Removed dialog window and label grid from chart display
 CArrayString symbols;                // list of symbols to display
 input int   RefreshSeconds = 60;     // update interval
-input bool  ShowPopup      = true;   // show popup window
+input bool  ShowPopup      = true;   // log matrix output each update
 
 // Restrict selectable timeframes to commonly used periods
 enum CorrelPeriod
@@ -63,7 +63,7 @@ int OnInit()
    // old chart-based dialog removed
    nextUpdate = TimeCurrent()+RefreshSeconds;
    if(ShowPopup)
-      ShowPopup();
+      DisplayMatrix();
    return(INIT_SUCCEEDED);
   }
 
@@ -85,7 +85,7 @@ void OnTick()
    if(TimeCurrent()>=nextUpdate)
      {
       if(ShowPopup)
-         ShowPopup();
+         DisplayMatrix();
       nextUpdate = TimeCurrent()+RefreshSeconds;
      }
   }
@@ -159,28 +159,30 @@ string HorizontalLine()
 
 string BuildMatrixText()
   {
-   string txt=HorizontalLine()+"\n";
+   string newline="\r\n";
+   string txt=HorizontalLine()+newline;
    txt+="|"+Pad("",CELL_WIDTH)+"|";
    for(int c=0;c<cols;c++)
       txt+=Pad(symbols.At(c),CELL_WIDTH)+"|";
-   txt+="\n"+HorizontalLine()+"\n";
+   txt+=newline+HorizontalLine()+newline;
    for(int r=0;r<rows;r++)
      {
       txt+="|"+Pad(symbols.At(r),CELL_WIDTH)+"|";
       for(int c=0;c<cols;c++)
         txt+=Pad(DoubleToString((r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c)),2),CELL_WIDTH)+"|";
-      txt+="\n"+HorizontalLine()+"\n";
+      txt+=newline+HorizontalLine()+newline;
      }
    return txt;
   }
 
 //+------------------------------------------------------------------+
-//| Show matrix in a message box                                      |
+//| Log the matrix and optionally show a small notice                  |
 //+------------------------------------------------------------------+
-void ShowPopup()
+void DisplayMatrix()
   {
    string msg=BuildMatrixText();
-   MessageBoxW(0,msg,"Correlation Matrix",0);
+   Print("\n"+msg);
+   MessageBoxW(0,"Correlation matrix printed in Experts log.","Correlation Matrix",0);
   }
 
 //+------------------------------------------------------------------+
