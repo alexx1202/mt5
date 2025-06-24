@@ -24,11 +24,11 @@ int MessageBoxW(int hWnd,string text,string caption,int type);
 #define clrTomato        C'255,99,71'
 #define clrSilver        C'192,192,192'
 
-CAppDialog  dlg;                     // main dialog window
-CArrayObj   labelGrid;               // holds label objects
+// Removed dialog window and label grid from chart display
 CArrayString symbols;                // list of symbols to display
 input int   RefreshSeconds = 60;     // update interval
 input bool  ShowPopup      = true;   // show popup window
+input ENUM_TIMEFRAMES CalcPeriod = PERIOD_M1; // timeframe for correlations
 
 int rows, cols;                      // matrix dimensions
 datetime nextUpdate = 0;    // time for the next matrix update
@@ -45,12 +45,8 @@ int OnInit()
       return(INIT_FAILED);
      }
 
-   // create dialog window (chart id=0 means current chart, subwindow=0)
-   dlg.Create(0, "Correlation Matrix", 0, 0, 0, 500, 20+20*rows);
-   CreateGrid();
-   dlg.Run();
+   // old chart-based dialog removed
    nextUpdate = TimeCurrent()+RefreshSeconds;
-   UpdateMatrix();
    if(ShowPopup)
       ShowPopup();
    return(INIT_SUCCEEDED);
@@ -59,14 +55,13 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
-   dlg.Destroy(reason);
-   labelGrid.Clear();
+   // nothing to clean up since dialog is removed
   }
 
 //+------------------------------------------------------------------+
 void OnChartEvent(const int id,const long &lparam,const double &dparam,const string &sparam)
   {
-   dlg.OnEvent(id,lparam,dparam,sparam);
+   // no dialog events to handle
   }
 
 //+------------------------------------------------------------------+
@@ -74,62 +69,12 @@ void OnTick()
   {
    if(TimeCurrent()>=nextUpdate)
      {
-      UpdateMatrix();
+      if(ShowPopup)
+         ShowPopup();
       nextUpdate = TimeCurrent()+RefreshSeconds;
      }
   }
 
-//+------------------------------------------------------------------+
-void CreateGrid()
-  {
-   labelGrid.Clear();
-   int left=10, top=10;
-   int cellW=80, cellH=20;
-   for(int r=0; r<rows+1; r++)
-     {
-      for(int c=0; c<cols+1; c++)
-        {
-         CLabel *lab=new CLabel;
-         labelGrid.Add(lab);
-         // create label as a child of the dialog
-         lab.Create(0, "", 0, left+c*cellW, top+r*cellH, cellW, cellH);
-         dlg.Add(lab);
-         // set label appearance
-         // center the label text and set basic colors
-         // center the label text and use a neutral background
-         // Align the label text in the center; zero offsets keep it stationary
-         lab.Alignment(ALIGN_CENTER,0,0,0,0);
-         lab.Color(clrWhite);
-         lab.ColorBackground((r==0||c==0)?clrDarkSlateGray:clrGray);
-         if(r==0 && c>0) lab.Text(symbols.At(c-1));
-         if(c==0 && r>0) lab.Text(symbols.At(r-1));
-       }
-     }
-  }
-
-//+------------------------------------------------------------------+
-void UpdateMatrix()
-  {
-   int idx=0;
-   for(int r=0; r<rows; r++)
-     {
-      for(int c=0; c<cols; c++)
-        {
-         idx = (r+1)*(cols+1)+(c+1);
-         CLabel *lab=(CLabel*)labelGrid.At(idx);
-         double corr = (r==c)?1.0:CalculateCorrelation(symbols.At(r), symbols.At(c));
-         string txt=DoubleToString(corr,2);
-         lab.Text(txt);
-         if(corr>0.8)        // strong positive correlation
-            lab.ColorBackground(clrLime);
-         else if(corr<-0.8) // strong negative correlation
-            lab.ColorBackground(clrTomato);
-         else               // weak correlation
-            lab.ColorBackground(clrSilver);
-        }
-     }
-   ChartRedraw(0);
-  }
 
 //+------------------------------------------------------------------+
 int GetWatchlistSymbols(CArrayString &list)
@@ -145,10 +90,10 @@ double CalculateCorrelation(const string a,const string b)
   {
    datetime end=TimeCurrent();
    const int bars=30;
-   datetime start=end-PeriodSeconds(PERIOD_M1)*bars;
+   datetime start=end-PeriodSeconds(CalcPeriod)*bars;
    MqlRates ra[], rb[];
-   int na=CopyRates(a,PERIOD_M1,start,end,ra);
-   int nb=CopyRates(b,PERIOD_M1,start,end,rb);
+   int na=CopyRates(a,CalcPeriod,start,end,ra);
+   int nb=CopyRates(b,CalcPeriod,start,end,rb);
    int n=MathMin(na,nb);
    if(n<2) return 0.0;
    int use=MathMin(n,bars);
@@ -165,19 +110,29 @@ double CalculateCorrelation(const string a,const string b)
  }
 
 //+------------------------------------------------------------------+
+//| Pad string with spaces                                           |
+//+------------------------------------------------------------------+
+string Pad(string s,int width)
+  {
+   while(StringLen(s)<width)
+      s+=" ";
+   return s;
+  }
+
+//+------------------------------------------------------------------+
 //| Create tab separated string of matrix values                      |
 //+------------------------------------------------------------------+
 string BuildMatrixText()
   {
-   string txt="\t";
+   string txt="     ";
    for(int c=0;c<cols;c++)
-      txt+=symbols.At(c)+"\t";
+      txt+=Pad(symbols.At(c),8);
    txt+="\n";
    for(int r=0;r<rows;r++)
      {
-      txt+=symbols.At(r)+"\t";
+      txt+=Pad(symbols.At(r),5);
       for(int c=0;c<cols;c++)
-        txt+=DoubleToString((r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c)),2)+"\t";
+        txt+=Pad(DoubleToString((r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c)),2),8);
       txt+="\n";
      }
    return txt;
