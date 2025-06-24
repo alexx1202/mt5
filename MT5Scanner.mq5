@@ -239,8 +239,11 @@ void PerformScan(const string folderPath, const string timestamp)
         Print("Note: output written to ", fullFolder, " but folder could not be opened.");
 
     //--- Optional Windows push notification when finished
-    if(EnableNotifications)
-        MessageBoxW(0, "FX Scanner complete!", "FXScanner", 0);
+    // The final pop-up box has been removed to avoid interrupting the user.
+    // If notifications are still desired for other events, they remain
+    // controlled by the EnableNotifications input setting above.
+    // if(EnableNotifications)
+    //     MessageBoxW(0, "FX Scanner complete!", "FXScanner", 0);
 }
 
 //+------------------------------------------------------------------+
