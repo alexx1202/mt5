@@ -17,7 +17,7 @@ CArrayString symbols;                // list of symbols to display
 input int   RefreshSeconds = 60;     // update interval
 
 int rows, cols;                      // matrix dimensions
-int nextUpdate = 0;
+datetime nextUpdate = 0;    // time for the next matrix update
 
 //+------------------------------------------------------------------+
 int OnInit()
@@ -31,7 +31,8 @@ int OnInit()
       return(INIT_FAILED);
      }
 
-   dlg.Create(0, "Correlation Matrix", 0, 0, 500, 20+20*rows);
+   // create dialog window (chart id=0 means current chart, subwindow=0)
+   dlg.Create(0, "Correlation Matrix", 0, 0, 0, 500, 20+20*rows);
    dlg.Run();
    CreateGrid();
    nextUpdate = TimeCurrent()+RefreshSeconds;
@@ -74,13 +75,15 @@ void CreateGrid()
         {
          CLabel *lab=new CLabel;
          labelGrid.Add(lab);
-         lab.Create(dlg, "", left+c*cellW, top+r*cellH, cellW, cellH);
-         lab.TextAlign(ALIGN_CENTER);
-         lab.Color(clrWhite);
-         lab.BackColor((r==0||c==0)?clrDarkSlateGray:clrGray);
-         if(r==0 && c>0) lab.Text(symbols.At(c-1));
-         if(c==0 && r>0) lab.Text(symbols.At(r-1));
-        }
+         // create label as a child of the dialog
+         lab->Create(0, "", 0, left+c*cellW, top+r*cellH, cellW, cellH);
+         dlg.Add(lab);
+         lab->TextAlign(ALIGN_CENTER);
+         lab->Color(clrWhite);
+         lab->BackColor((r==0||c==0)?clrDarkSlateGray:clrGray);
+         if(r==0 && c>0) lab->Text(symbols.At(c-1));
+         if(c==0 && r>0) lab->Text(symbols.At(r-1));
+       }
      }
   }
 
@@ -93,13 +96,13 @@ void UpdateMatrix()
       for(int c=0; c<cols; c++)
         {
          idx = (r+1)*(cols+1)+(c+1);
-         CLabel *lab=labelGrid.At(idx);
+         CLabel *lab=(CLabel*)labelGrid.At(idx);
          double corr = (r==c)?1.0:CalculateCorrelation(symbols.At(r), symbols.At(c));
          string txt=DoubleToString(corr,2);
-         lab.Text(txt);
-         if(corr>0.8) lab.BackColor(clrLime);
-         else if(corr<-0.8) lab.BackColor(clrTomato);
-         else lab.BackColor(clrSilver);
+         lab->Text(txt);
+         if(corr>0.8) lab->BackColor(clrLime);
+         else if(corr<-0.8) lab->BackColor(clrTomato);
+         else lab->BackColor(clrSilver);
         }
      }
   }
