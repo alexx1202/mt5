@@ -58,8 +58,7 @@ input ENUM_BROKER_MODE BrokerMode         = BROKER_PEPPERSTONE;
 input double           RewardRiskRatio    = 2.0;
 input ENUM_ORDER_SIDE  OrderSide          = ORDER_BUY;
 
-input string           OandaAccountID     = "001-011-7821430-001"; // ID used to query OANDA balance
-input string           OandaApiToken      = "25becd000966ef6caa04a753972898fb-fb183afa2b32a7de59b2acdcee7f9b81"; // API token for OANDA REST requests
+input double           OandaBalance       = 0.0; // manually entered OANDA balance
 
 //--- Extra adjustable parameters
 input double           CommissionPerLot   = 7.0;     // Commission for 1 lot (AUD)
@@ -152,42 +151,9 @@ void OnStart()
 {
    string symbol   = _Symbol;
    double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
-   if(BrokerMode == BROKER_OANDA)
+   if(BrokerMode == BROKER_OANDA && OandaBalance > 0)
    {
-      bool fetched=false;
-      if(StringLen(OandaAccountID)>0 && StringLen(OandaApiToken)>0)
-      {
-         string url=StringFormat("https://api-fxtrade.oanda.com/v3/accounts/%s/summary",OandaAccountID);
-         char  result[];
-         string headers="Authorization: Bearer "+OandaApiToken+"\r\n";
-         string res_headers;
-         char  data[];
-         int code=WebRequest("GET",url,headers,5000,data,result,res_headers);
-         if(code==200)
-         {
-            string js=CharArrayToString(result);
-            int p=StringFind(js,"\"balance\":");
-            if(p>=0)
-            {
-               p+=10;
-               string tmp=StringSubstr(js,p);
-               int end=StringFind(tmp,"\"",0);
-               if(end>0)
-                  tmp=StringSubstr(tmp,0,end);
-               double bal=StringToDouble(tmp);
-               if(bal>0)
-               {
-                  balance=bal;
-                  fetched=true;
-               }
-            }
-         }
-      }
-      if(!fetched)
-      {
-         Print("Error: failed to retrieve OANDA balance");
-         return;
-      }
+      balance = OandaBalance;   // use manually entered balance for OANDA
    }
    // otherwise Pepperstone uses the balance reported by the platform
    if(balance <= 0)
