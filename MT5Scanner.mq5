@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //|                                                MT5Scanner.mq5    |
-//|     Simple MT5 Scanner for Spread, Swap and USDX Correlation    |
+//|   Simple MT5 Scanner for Spread, Swap and Correlation Matrix    |
 //+------------------------------------------------------------------+
 #property script_show_inputs
 #property strict
@@ -15,7 +15,6 @@
 
 // Script inputs provide flexibility to end users.
 input string FilePrefix        = "FX_Data_";   // Prefix for generated CSV files
-input string usdxSymbol        = "USDX.a";     // Symbol used to compare correlation
 input bool   ShowDebugMessages = true;         // Print progress information
 input bool   EnableNotifications = true;         // Show pop-ups and MetaTrader alerts
 input int    ScanIntervalMinutes = 30;         // Interval between scans
@@ -101,7 +100,7 @@ void DeleteOldCsvFiles(const string folderPath)
 void OnStart()
 {
     if(ShowDebugMessages)
-        Print("Starting FX Scanner Script v1.37 (Spread, Swap and USDX Correlation)");
+        Print("Starting FX Scanner Script v1.37 (Spread, Swap and Correlation Matrix)");
 
     // Files are always stored relative to the terminal's MQL5\Files folder.
     // Do not use an absolute path here, otherwise FileOpen() will fail.
@@ -146,82 +145,80 @@ void PerformScan(const string folderPath, const string timestamp)
     // Open all required CSV files
     string prefix = timestamp + "-" + FilePrefix;
     int swapHandle = FileOpen(folderPath + prefix + "Swap.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
-    int corrHandle = FileOpen(folderPath + prefix + "USDXCorrelation.csv", FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
-    if(swapHandle < 0 || corrHandle < 0)
+
+    int corrHandles[];
+    ArrayResize(corrHandles, ArraySize(timeframes));
+    for(int j = 0; j < ArraySize(timeframes); j++)
     {
-        Print("Failed to open output files. Error: ", GetLastError());
-        if(swapHandle   >= 0) FileClose(swapHandle);
-        if(corrHandle   >= 0) FileClose(corrHandle);
-        return;
+        string tfStr   = EnumToString(timeframes[j]);
+        string fn      = folderPath + prefix + tfStr + "Correlation.csv";
+        corrHandles[j] = FileOpen(fn, FILE_WRITE | FILE_ANSI | FILE_CSV | FILE_TXT);
+        if(corrHandles[j] < 0)
+        {
+            Print("Failed to open output file: ", fn);
+            if(swapHandle >= 0) FileClose(swapHandle);
+            for(int k=0;k<j;k++) if(corrHandles[k] >= 0) FileClose(corrHandles[k]);
+            return;
+        }
     }
 
     // Write headers
     FileWriteString(swapHandle,  "Symbol,SwapLong,SwapShort\r\n");
-    FileWriteString(corrHandle,  "Symbol,");
     for(int j = 0; j < ArraySize(timeframes); j++)
     {
-        string tfStr = EnumToString(timeframes[j]);
-        FileWriteString(corrHandle, tfStr + ",");
+        FileWriteString(corrHandles[j], "Symbol,");
+        for(int s = 0; s < symbols.Total(); s++)
+            FileWriteString(corrHandles[j], symbols.At(s) + ",");
+        FileWriteString(corrHandles[j], "\r\n");
     }
-    FileWriteString(corrHandle, "\r\n");
 
     // Process each symbol
     for(int i = 0; i < symbols.Total(); i++)
     {
-        string symbol = symbols.At(i);
+        string symbolRow = symbols.At(i);
         int progress  = (int)MathRound((double)(i+1) / symbols.Total() * 100);
         if(ShowDebugMessages)
-            PrintFormat("[%3d%%] Processing symbol (%d/%d): %s", progress, i+1, symbols.Total(), symbol);
+            PrintFormat("[%3d%%] Processing symbol (%d/%d): %s", progress, i+1, symbols.Total(), symbolRow);
 
         // Ensure the symbol is subscribed so CopyRates can load history
-        if(!SymbolSelect(symbol, true))
+        if(!SymbolSelect(symbolRow, true))
         {
-            Print("Failed to select symbol ", symbol);
+            Print("Failed to select symbol ", symbolRow);
             continue;
         }
-        // RefreshRates() is an MQL4 function and not required here.
-        // The required price data is retrieved using SymbolInfo* and CopyRates.
 
         // --- Swap information ---
         double swapLong, swapShort;
-        if(!SymbolInfoDouble(symbol, SYMBOL_SWAP_LONG, swapLong) ||
-           !SymbolInfoDouble(symbol, SYMBOL_SWAP_SHORT, swapShort))
+        if(!SymbolInfoDouble(symbolRow, SYMBOL_SWAP_LONG, swapLong) ||
+           !SymbolInfoDouble(symbolRow, SYMBOL_SWAP_SHORT, swapShort))
         {
-            Print("Failed to read swap for ", symbol);
+            Print("Failed to read swap for ", symbolRow);
             swapLong = 0.0;
             swapShort = 0.0;
         }
-        FileWriteString(swapHandle, StringFormat("%s,%.4f,%.4f\r\n", symbol,
+        FileWriteString(swapHandle, StringFormat("%s,%.4f,%.4f\r\n", symbolRow,
                                                 NormalizeDouble(swapLong,4),
                                                 NormalizeDouble(swapShort,4)));
 
-        // Symbol header for correlation file
-        FileWriteString(corrHandle, symbol + ",");
-
-        // --- Correlation ---
+        // --- Correlation matrix rows ---
         for(int j = 0; j < ArraySize(timeframes); j++)
         {
-            // Always use 1-minute bars to evaluate the requested timeframe
-            datetime endTime   = TimeCurrent();
-            datetime startTime = endTime - PeriodSeconds(timeframes[j]);
-            MqlRates ratesM1[];
-            int barCount = CopyRates(symbol, PERIOD_M1, startTime, endTime, ratesM1);
-            if(barCount <= 0)
+            FileWriteString(corrHandles[j], symbolRow + ",");
+            for(int k = 0; k < symbols.Total(); k++)
             {
-                Print("No M1 data for ", symbol, " on ", EnumToString(timeframes[j]));
+                string symbolCol = symbols.At(k);
+                double correlation = (i == k) ? 1.0 : NormalizeDouble(
+                    CalculateBarCorrelation(symbolRow, symbolCol, timeframes[j]), 4);
+                FileWriteString(corrHandles[j], StringFormat("%.4f,", correlation));
             }
-
-            // Correlation with USDX symbol
-            double correlation = NormalizeDouble(
-                CalculateBarCorrelation(symbol, usdxSymbol, timeframes[j]), 4);
-            FileWriteString(corrHandle, StringFormat("%.4f,", correlation));
+            FileWriteString(corrHandles[j], "\r\n");
         }
-        FileWriteString(corrHandle,   "\r\n");
     }
 
     // Close files
     FileClose(swapHandle);
-    FileClose(corrHandle);
+    for(int j = 0; j < ArraySize(timeframes); j++)
+        FileClose(corrHandles[j]);
 
     // Spread report uses a separate file
     WriteSpreadReport(symbols, folderPath, timestamp);
