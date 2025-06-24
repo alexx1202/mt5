@@ -105,10 +105,10 @@ double CalculateCorrelation(const string a,const string b)
   {
    datetime end=TimeCurrent();
    const int bars=30;
-   datetime start=end-PeriodSeconds(CalcPeriod)*bars;
+   datetime start=end-PeriodSeconds((ENUM_TIMEFRAMES)CalcPeriod)*bars;
    MqlRates ra[], rb[];
-   int na=CopyRates(a,CalcPeriod,start,end,ra);
-   int nb=CopyRates(b,CalcPeriod,start,end,rb);
+   int na=CopyRates(a,(ENUM_TIMEFRAMES)CalcPeriod,start,end,ra);
+   int nb=CopyRates(b,(ENUM_TIMEFRAMES)CalcPeriod,start,end,rb);
    int n=MathMin(na,nb);
    if(n<2) return 0.0;
    int use=MathMin(n,bars);
