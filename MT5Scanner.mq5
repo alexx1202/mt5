@@ -110,9 +110,11 @@ void OnStart()
     string displayPath = TerminalInfoString(TERMINAL_DATA_PATH) +
                          "\\MQL5\\Files\\" + g_outputFolder;
 
+    // Delete any old CSV files before starting the first scan
+    DeleteOldCsvFiles(g_outputFolder);
+
     while(!IsStopped())
     {
-        DeleteOldCsvFiles(g_outputFolder);
         g_fileTimestamp = GetTimestampString();
         if(ShowDebugMessages)
             Print("Saving reports to ", displayPath, " with timestamp prefix ", g_fileTimestamp);
