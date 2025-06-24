@@ -79,9 +79,10 @@ void CreateGrid()
          lab.Create(0, "", 0, left+c*cellW, top+r*cellH, cellW, cellH);
          dlg.Add(lab);
          // set label appearance
-         lab.SetTextAlign(ALIGN_CENTER);   // center the label text
-         lab.SetColor(clrWhite);           // text color
-         lab.SetBackColor((r==0||c==0)?clrDarkSlateGray:clrGray); // background
+         // center the label text and set basic colors
+         lab.TextAlign(ALIGN_CENTER);
+         lab.Color(clrWhite);
+         lab.BackColor((r==0||c==0)?clrDarkSlateGray:clrGray);
          if(r==0 && c>0) lab.Text(symbols.At(c-1));
          if(c==0 && r>0) lab.Text(symbols.At(r-1));
        }
@@ -102,11 +103,11 @@ void UpdateMatrix()
          string txt=DoubleToString(corr,2);
          lab.Text(txt);
          if(corr>0.8)        // strong positive correlation
-            lab.SetBackColor(clrLime);
+            lab.BackColor(clrLime);
          else if(corr<-0.8) // strong negative correlation
-            lab.SetBackColor(clrTomato);
+            lab.BackColor(clrTomato);
          else               // weak correlation
-            lab.SetBackColor(clrSilver);
+            lab.BackColor(clrSilver);
         }
      }
   }
