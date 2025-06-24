@@ -90,7 +90,8 @@ void CreateGrid()
          // set label appearance
          // center the label text and set basic colors
          // center the label text and use a neutral background
-         lab.Alignment(ALIGN_CENTER);
+         // Align the label text in the center; zero offsets keep it stationary
+         lab.Alignment(ALIGN_CENTER,0,0,0,0);
          lab.Color(clrWhite);
          lab.ColorBackground((r==0||c==0)?clrDarkSlateGray:clrGray);
          if(r==0 && c>0) lab.Text(symbols.At(c-1));
