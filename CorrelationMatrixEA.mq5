@@ -76,13 +76,13 @@ void CreateGrid()
          CLabel *lab=new CLabel;
          labelGrid.Add(lab);
          // create label as a child of the dialog
-         lab->Create(0, "", 0, left+c*cellW, top+r*cellH, cellW, cellH);
+         lab.Create(0, "", 0, left+c*cellW, top+r*cellH, cellW, cellH);
          dlg.Add(lab);
-         lab->TextAlign(ALIGN_CENTER);
-         lab->Color(clrWhite);
-         lab->BackColor((r==0||c==0)?clrDarkSlateGray:clrGray);
-         if(r==0 && c>0) lab->Text(symbols.At(c-1));
-         if(c==0 && r>0) lab->Text(symbols.At(r-1));
+         lab.TextAlign(ALIGN_CENTER);
+         lab.Color(clrWhite);
+         lab.BackColor((r==0||c==0)?clrDarkSlateGray:clrGray);
+         if(r==0 && c>0) lab.Text(symbols.At(c-1));
+         if(c==0 && r>0) lab.Text(symbols.At(r-1));
        }
      }
   }
@@ -99,10 +99,10 @@ void UpdateMatrix()
          CLabel *lab=(CLabel*)labelGrid.At(idx);
          double corr = (r==c)?1.0:CalculateCorrelation(symbols.At(r), symbols.At(c));
          string txt=DoubleToString(corr,2);
-         lab->Text(txt);
-         if(corr>0.8) lab->BackColor(clrLime);
-         else if(corr<-0.8) lab->BackColor(clrTomato);
-         else lab->BackColor(clrSilver);
+         lab.Text(txt);
+         if(corr>0.8) lab.BackColor(clrLime);
+         else if(corr<-0.8) lab.BackColor(clrTomato);
+         else lab.BackColor(clrSilver);
         }
      }
   }
