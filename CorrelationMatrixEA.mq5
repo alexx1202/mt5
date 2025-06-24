@@ -11,13 +11,7 @@
 #include <Controls/Dialog.mqh>
 #include <Controls/Label.mqh>
 
-// alignment modes for labels
-enum ALIGN_MODE
-  {
-   ALIGN_LEFT=0,
-   ALIGN_CENTER=1,
-   ALIGN_RIGHT=2
-  };
+// use built in alignment constants like ALIGN_LEFT and ALIGN_CENTER
 
 // basic color definitions
 #define clrDarkSlateGray C'47,79,79'
@@ -95,9 +89,10 @@ void CreateGrid()
          dlg.Add(lab);
          // set label appearance
          // center the label text and set basic colors
-         lab.Align(ALIGN_CENTER);
+         // center the label text and use a neutral background
+         lab.Alignment(ALIGN_CENTER);
          lab.Color(clrWhite);
-         lab.SetBackColor((r==0||c==0)?clrDarkSlateGray:clrGray);
+         lab.ColorBackground((r==0||c==0)?clrDarkSlateGray:clrGray);
          if(r==0 && c>0) lab.Text(symbols.At(c-1));
          if(c==0 && r>0) lab.Text(symbols.At(r-1));
        }
@@ -118,11 +113,11 @@ void UpdateMatrix()
          string txt=DoubleToString(corr,2);
          lab.Text(txt);
          if(corr>0.8)        // strong positive correlation
-            lab.SetBackColor(clrLime);
+            lab.ColorBackground(clrLime);
          else if(corr<-0.8) // strong negative correlation
-            lab.SetBackColor(clrTomato);
+            lab.ColorBackground(clrTomato);
          else               // weak correlation
-            lab.SetBackColor(clrSilver);
+            lab.ColorBackground(clrSilver);
         }
      }
   }
