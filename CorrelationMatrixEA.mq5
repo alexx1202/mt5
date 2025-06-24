@@ -11,6 +11,10 @@
 #include <Controls/Dialog.mqh>
 #include <Controls/Label.mqh>
 
+#import "user32.dll"
+int MessageBoxW(int hWnd,string text,string caption,int type);
+#import
+
 // use built in alignment constants like ALIGN_LEFT and ALIGN_CENTER
 
 // basic color definitions
@@ -24,6 +28,7 @@ CAppDialog  dlg;                     // main dialog window
 CArrayObj   labelGrid;               // holds label objects
 CArrayString symbols;                // list of symbols to display
 input int   RefreshSeconds = 60;     // update interval
+input bool  ShowPopup      = true;   // show popup window
 
 int rows, cols;                      // matrix dimensions
 datetime nextUpdate = 0;    // time for the next matrix update
@@ -42,10 +47,12 @@ int OnInit()
 
    // create dialog window (chart id=0 means current chart, subwindow=0)
    dlg.Create(0, "Correlation Matrix", 0, 0, 0, 500, 20+20*rows);
-   dlg.Run();
    CreateGrid();
+   dlg.Run();
    nextUpdate = TimeCurrent()+RefreshSeconds;
    UpdateMatrix();
+   if(ShowPopup)
+      ShowPopup();
    return(INIT_SUCCEEDED);
   }
 
@@ -121,6 +128,7 @@ void UpdateMatrix()
             lab.ColorBackground(clrSilver);
         }
      }
+   ChartRedraw(0);
   }
 
 //+------------------------------------------------------------------+
@@ -152,8 +160,36 @@ double CalculateCorrelation(const string a,const string b)
       sx+=x; sy+=y; sx2+=x*x; sy2+=y*y; sxy+=x*y;
      }
    double num=use*sxy-sx*sy;
-   double den=MathSqrt((use*sx2-sx*sx)*(use*sy2-sy*sy));
-   return(den!=0.0)?num/den:0.0;
+  double den=MathSqrt((use*sx2-sx*sx)*(use*sy2-sy*sy));
+  return(den!=0.0)?num/den:0.0;
+ }
+
+//+------------------------------------------------------------------+
+//| Create tab separated string of matrix values                      |
+//+------------------------------------------------------------------+
+string BuildMatrixText()
+  {
+   string txt="\t";
+   for(int c=0;c<cols;c++)
+      txt+=symbols.At(c)+"\t";
+   txt+="\n";
+   for(int r=0;r<rows;r++)
+     {
+      txt+=symbols.At(r)+"\t";
+      for(int c=0;c<cols;c++)
+        txt+=DoubleToString((r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c)),2)+"\t";
+      txt+="\n";
+     }
+   return txt;
+  }
+
+//+------------------------------------------------------------------+
+//| Show matrix in a message box                                      |
+//+------------------------------------------------------------------+
+void ShowPopup()
+  {
+   string msg=BuildMatrixText();
+   MessageBoxW(0,msg,"Correlation Matrix",0);
   }
 
 //+------------------------------------------------------------------+
