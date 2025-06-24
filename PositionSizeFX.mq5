@@ -329,7 +329,7 @@ void OnStart()
       json += StringFormat(" \"quantity\": %d,\n", qty);
       json += StringFormat(" \"take_profit_price\": \"{{close}} %s %.3f\",\n", isBuy?"+":"-", tpPips * pipSize);
       json += StringFormat(" \"stop_loss_price\": \"{{close}} %s %.3f\"\n", isBuy?"-":"+", StopLossPips * pipSize);
-      json += "}\n\nWEBHOOK (OANDA):\nhttps://app.signalstack.com/hook/iodL7zcSTfiCDnMPwfmF2P\n";
+      json += "}\n\nWEBHOOK (OANDA):\nhttps://app.signalstack.com/hook/kiwPq16apN3xpy5eMPDovH\n";
       int oh = FileOpen("OANDA_Swing.txt", FILE_WRITE|FILE_TXT|FILE_ANSI);
       if(oh != INVALID_HANDLE)
       {
