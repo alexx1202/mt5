@@ -231,10 +231,16 @@ void OnStart()
       Print("Error: OrderCalcMargin failed with code ", GetLastError());
       return;
    }
+   // use manual free margin for OANDA mode so the script can be run on a
+   // Pepperstone account while simulating OANDA conditions
    double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+   if(BrokerMode == BROKER_OANDA && OandaBalance > 0)
+      freeMargin = OandaBalance;
+
    if(marginNeeded > freeMargin)
    {
-      PrintFormat("Warning: not enough free margin (needed %.2f, available %.2f)", marginNeeded, freeMargin);
+      PrintFormat("Warning: not enough free margin (needed %.2f, available %.2f)",
+                  marginNeeded, freeMargin);
    }
 
    //--- confirm using Pepperstone leverage tiers
@@ -242,17 +248,22 @@ void OnStart()
   double contractSize     = SymbolInfoDouble(symbol, SYMBOL_TRADE_CONTRACT_SIZE);
   double notionalValue    = lotSize * contractSize * price;
   double marginByLeverage = notionalValue / leverage;
-  if(marginByLeverage > freeMargin)
+  if(BrokerMode == BROKER_PEPPERSTONE && marginByLeverage > freeMargin)
   {
-     PrintFormat("Warning: Pepperstone leverage 1:%.0f requires %.2f margin but only %.2f is available", leverage, marginByLeverage, freeMargin);
+     PrintFormat("Warning: Pepperstone leverage 1:%.0f requires %.2f margin but only %.2f is available",
+                 leverage, marginByLeverage, freeMargin);
   }
 
-  string leverageCheckMsg;
-  if(marginByLeverage <= freeMargin)
-     leverageCheckMsg = StringFormat("PASS: margin requirement %.2f is within free margin %.2f for leverage 1:%.0f", marginByLeverage, freeMargin, leverage);
+  // use the broker-calculated margin for pass/fail because notional based
+  // checks can be inaccurate across brokers
+  string marginCheckMsg;
+  if(marginNeeded <= freeMargin)
+     marginCheckMsg = StringFormat("PASS: margin requirement %.2f is within free margin %.2f",
+                                   marginNeeded, freeMargin);
   else
-     leverageCheckMsg = StringFormat("FAIL: margin requirement %.2f exceeds free margin %.2f for leverage 1:%.0f", marginByLeverage, freeMargin, leverage);
-  Print(leverageCheckMsg);
+     marginCheckMsg = StringFormat("FAIL: margin requirement %.2f exceeds free margin %.2f",
+                                   marginNeeded, freeMargin);
+  Print(marginCheckMsg);
 
    //--- TP calculation
    double tpPips          = StopLossPips * RewardRiskRatio;
@@ -289,8 +300,9 @@ void OnStart()
    out += StringFormat("Expected Net Profit at TP: AUD%.2f\n", netReward);
    out += StringFormat("Minimum Net Profit Target: AUD%.2f\n", MinNetProfitAUD);
   out += StringFormat("Margin Needed: %.2f\n", marginNeeded);
-  out += StringFormat("Margin by Pepperstone 1:%.0f: %.2f\n", leverage, marginByLeverage);
-  out += leverageCheckMsg + "\n";
+  if(BrokerMode == BROKER_PEPPERSTONE)
+     out += StringFormat("Margin by Pepperstone 1:%.0f: %.2f\n", leverage, marginByLeverage);
+  out += marginCheckMsg + "\n";
 
    int h = FileOpen(fileName, FILE_WRITE|FILE_TXT|FILE_ANSI);
    if(h == INVALID_HANDLE)
