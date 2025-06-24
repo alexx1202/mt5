@@ -8,8 +8,6 @@
 #property script_show_inputs
 
 #include <Arrays/ArrayString.mqh>
-#include <Controls/Dialog.mqh>
-#include <Controls/Label.mqh>
 
 #import "user32.dll"
 int MessageBoxW(int hWnd,string text,string caption,int type);
@@ -28,7 +26,24 @@ int MessageBoxW(int hWnd,string text,string caption,int type);
 CArrayString symbols;                // list of symbols to display
 input int   RefreshSeconds = 60;     // update interval
 input bool  ShowPopup      = true;   // show popup window
-input ENUM_TIMEFRAMES CalcPeriod = PERIOD_M1; // timeframe for correlations
+
+// Restrict selectable timeframes to commonly used periods
+enum CorrelPeriod
+  {
+   TF_M5   = PERIOD_M5,
+   TF_M15  = PERIOD_M15,
+   TF_M30  = PERIOD_M30,
+   TF_H1   = PERIOD_H1,
+   TF_H4   = PERIOD_H4,
+   TF_D1   = PERIOD_D1,
+   TF_W1   = PERIOD_W1,
+   TF_MN1  = PERIOD_MN1
+  };
+
+input CorrelPeriod CalcPeriod = TF_M5; // timeframe for correlations
+
+// width of each cell in the ASCII table
+#define CELL_WIDTH 8
 
 int rows, cols;                      // matrix dimensions
 datetime nextUpdate = 0;    // time for the next matrix update
@@ -110,6 +125,17 @@ double CalculateCorrelation(const string a,const string b)
  }
 
 //+------------------------------------------------------------------+
+//| Repeat a substring multiple times                                 |
+//+------------------------------------------------------------------+
+string Repeat(string s,int n)
+  {
+   string r="";
+   for(int i=0;i<n;i++)
+      r+=s;
+   return r;
+  }
+
+//+------------------------------------------------------------------+
 //| Pad string with spaces                                           |
 //+------------------------------------------------------------------+
 string Pad(string s,int width)
@@ -120,20 +146,30 @@ string Pad(string s,int width)
   }
 
 //+------------------------------------------------------------------+
-//| Create tab separated string of matrix values                      |
+//| Build a simple ASCII table of correlations                         |
 //+------------------------------------------------------------------+
+string HorizontalLine()
+  {
+   string line="+";
+   line+=Repeat("-",CELL_WIDTH)+"+";
+   for(int c=0;c<cols;c++)
+      line+=Repeat("-",CELL_WIDTH)+"+";
+   return line;
+  }
+
 string BuildMatrixText()
   {
-   string txt="     ";
+   string txt=HorizontalLine()+"\n";
+   txt+="|"+Pad("",CELL_WIDTH)+"|";
    for(int c=0;c<cols;c++)
-      txt+=Pad(symbols.At(c),8);
-   txt+="\n";
+      txt+=Pad(symbols.At(c),CELL_WIDTH)+"|";
+   txt+="\n"+HorizontalLine()+"\n";
    for(int r=0;r<rows;r++)
      {
-      txt+=Pad(symbols.At(r),5);
+      txt+="|"+Pad(symbols.At(r),CELL_WIDTH)+"|";
       for(int c=0;c<cols;c++)
-        txt+=Pad(DoubleToString((r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c)),2),8);
-      txt+="\n";
+        txt+=Pad(DoubleToString((r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c)),2),CELL_WIDTH)+"|";
+      txt+="\n"+HorizontalLine()+"\n";
      }
    return txt;
   }
