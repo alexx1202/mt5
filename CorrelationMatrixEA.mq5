@@ -304,23 +304,24 @@ string BuildSwapHtml()
 //+------------------------------------------------------------------+
 void ShowPopup()
   {
-   string matrix=BuildMatrixHtml();
-   string spread=BuildSpreadHtml();
-   string swap  =BuildSwapHtml();
+   // generate the HTML strings first
+   string matrix_html = BuildMatrixHtml();
+   string spread_html = BuildSpreadHtml();
+   string swap_html   = BuildSwapHtml();
 
    string matrixFile="CorrelationMatrix.html";
    string spreadFile="SpreadScan.html";
    string swapFile="SwapScan.html";
 
-   int h=FileOpen(matrixFile,FILE_WRITE|FILE_TXT|FILE_ANSI);
-   if(h>=0)
-     { FileWriteString(h,matrix); FileClose(h); }
-   h=FileOpen(spreadFile,FILE_WRITE|FILE_TXT|FILE_ANSI);
-   if(h>=0)
-     { FileWriteString(h,spread); FileClose(h); }
-   h=FileOpen(swapFile,FILE_WRITE|FILE_TXT|FILE_ANSI);
-   if(h>=0)
-     { FileWriteString(h,swap); FileClose(h); }
+   int h = FileOpen(matrixFile, FILE_WRITE | FILE_TXT | FILE_ANSI);
+   if(h >= 0)
+     { FileWriteString(h, matrix_html); FileClose(h); }
+   h = FileOpen(spreadFile, FILE_WRITE | FILE_TXT | FILE_ANSI);
+   if(h >= 0)
+     { FileWriteString(h, spread_html); FileClose(h); }
+   h = FileOpen(swapFile, FILE_WRITE | FILE_TXT | FILE_ANSI);
+   if(h >= 0)
+     { FileWriteString(h, swap_html); FileClose(h); }
 
    if(!pageOpened)
      {
