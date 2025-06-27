@@ -264,7 +264,7 @@ string BuildSpreadHtml()
    html+="</style></head><body><div class='table-container'><table>";
    html+="<tr><th>Symbol</th><th>Spread %</th></tr>";
    for(int i=0;i<total;i++)
-     html+=StringFormat("<tr><td>%s</td><td>%0.2f</td></tr>",syms[i],spreads[i]);
+     html+=StringFormat("<tr><td>%s</td><td>%0.10f</td></tr>",syms[i],spreads[i]);
    html+="</table></div></body></html>";
    return html;
   }
@@ -292,9 +292,13 @@ string BuildSwapHtml()
       if(!SymbolInfoDouble(sym,SYMBOL_SWAP_LONG,swapLong) ||
          !SymbolInfoDouble(sym,SYMBOL_SWAP_SHORT,swapShort))
         { swapLong=0.0; swapShort=0.0; }
-      html+=StringFormat("<tr><td>%s</td><td>%0.2f</td><td>%0.2f</td></tr>",
-                        sym,swapLong,swapShort);
-     }
+
+      string colLong  = (swapLong<0)?"red":"green";
+      string colShort = (swapShort<0)?"red":"green";
+      html+=StringFormat("<tr><td>%s</td><td style='color:%s'>%0.2f</td>"
+                        "<td style='color:%s'>%0.2f</td></tr>",
+                        sym,colLong,swapLong,colShort,swapShort);
+    }
    html+="</table></div></body></html>";
    return html;
   }
@@ -330,14 +334,11 @@ void ShowPopup()
       string fullSpread=base+spreadFile;
       string fullSwap  =base+swapFile;
 
-      string cmd=StringFormat("/c start \"\" \"%s\"",fullMatrix);
+      string cmd=StringFormat("/c start \"\" \"%s\" \"%s\" \"%s\"",
+                              fullMatrix,fullSpread,fullSwap);
       int res=ShellExecuteW(0,"open","cmd.exe",cmd,NULL,0);
       if(res>32)
-        {
-         ShellExecuteW(0,"open",fullSpread,NULL,NULL,1);
-         ShellExecuteW(0,"open",fullSwap,NULL,NULL,1);
          pageOpened=true;
-        }
       else
         MessageBoxW(0,BuildMatrixText(),"Correlation Matrix",0);
      }
