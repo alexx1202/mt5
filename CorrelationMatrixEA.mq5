@@ -216,6 +216,86 @@ string BuildMatrixHtml()
       html+="</tr>";
      }
    html+="</table></div></body></html>";
+  return html;
+ }
+
+//+------------------------------------------------------------------+
+//| Build HTML table for spread percentages                           |
+//+------------------------------------------------------------------+
+string BuildSpreadHtml()
+  {
+   int total=symbols.Total();
+   string syms[];
+   double spreads[];
+   ArrayResize(syms,total);
+   ArrayResize(spreads,total);
+   for(int i=0;i<total;i++)
+     {
+      syms[i]=symbols.At(i);
+      double bid,ask,point;
+      if(!SymbolInfoDouble(syms[i],SYMBOL_BID,bid) ||
+         !SymbolInfoDouble(syms[i],SYMBOL_ASK,ask) ||
+         !SymbolInfoDouble(syms[i],SYMBOL_POINT,point))
+        {
+         spreads[i]=0.0;
+         continue;
+        }
+      double raw=ask-bid;
+      double sprd=(raw>0)?raw:point;
+      spreads[i]=(sprd/bid)*100.0;
+     }
+
+   for(int i=0;i<total-1;i++)
+      for(int j=0;j<total-1-i;j++)
+         if(spreads[j]>spreads[j+1])
+           {
+            double td=spreads[j]; spreads[j]=spreads[j+1]; spreads[j+1]=td;
+            string ts=syms[j];    syms[j]=syms[j+1];    syms[j+1]=ts;
+           }
+
+   string html="<html><head><meta charset='UTF-8'>";
+   html+=StringFormat("<meta http-equiv='refresh' content='%d'>",RefreshSeconds);
+   html+="<style>";
+   html+="body{font-family:monospace;background:black;color:white;}";
+   html+="div.table-container{overflow-x:auto;}";
+   html+="table{border-collapse:collapse;}";
+   html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
+   html+="th:first-child{text-align:left;}";
+   html+="</style></head><body><div class='table-container'><table>";
+   html+="<tr><th>Symbol</th><th>Spread %</th></tr>";
+   for(int i=0;i<total;i++)
+     html+=StringFormat("<tr><td>%s</td><td>%0.2f</td></tr>",syms[i],spreads[i]);
+   html+="</table></div></body></html>";
+   return html;
+  }
+
+//+------------------------------------------------------------------+
+//| Build HTML table for swap information                             |
+//+------------------------------------------------------------------+
+string BuildSwapHtml()
+  {
+   int total=symbols.Total();
+   string html="<html><head><meta charset='UTF-8'>";
+   html+=StringFormat("<meta http-equiv='refresh' content='%d'>",RefreshSeconds);
+   html+="<style>";
+   html+="body{font-family:monospace;background:black;color:white;}";
+   html+="div.table-container{overflow-x:auto;}";
+   html+="table{border-collapse:collapse;}";
+   html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
+   html+="th:first-child{text-align:left;}";
+   html+="</style></head><body><div class='table-container'><table>";
+   html+="<tr><th>Symbol</th><th>Swap Long</th><th>Swap Short</th></tr>";
+   for(int i=0;i<total;i++)
+     {
+      string sym=symbols.At(i);
+      double swapLong,swapShort;
+      if(!SymbolInfoDouble(sym,SYMBOL_SWAP_LONG,swapLong) ||
+         !SymbolInfoDouble(sym,SYMBOL_SWAP_SHORT,swapShort))
+        { swapLong=0.0; swapShort=0.0; }
+      html+=StringFormat("<tr><td>%s</td><td>%0.2f</td><td>%0.2f</td></tr>",
+                        sym,swapLong,swapShort);
+     }
+   html+="</table></div></body></html>";
    return html;
   }
 
@@ -224,25 +304,42 @@ string BuildMatrixHtml()
 //+------------------------------------------------------------------+
 void ShowPopup()
   {
-   string html=BuildMatrixHtml();
-   string fileName="CorrelationMatrix.html";
-   int h=FileOpen(fileName,FILE_WRITE|FILE_TXT|FILE_ANSI);
+   string matrix=BuildMatrixHtml();
+   string spread=BuildSpreadHtml();
+   string swap  =BuildSwapHtml();
+
+   string matrixFile="CorrelationMatrix.html";
+   string spreadFile="SpreadScan.html";
+   string swapFile="SwapScan.html";
+
+   int h=FileOpen(matrixFile,FILE_WRITE|FILE_TXT|FILE_ANSI);
    if(h>=0)
+     { FileWriteString(h,matrix); FileClose(h); }
+   h=FileOpen(spreadFile,FILE_WRITE|FILE_TXT|FILE_ANSI);
+   if(h>=0)
+     { FileWriteString(h,spread); FileClose(h); }
+   h=FileOpen(swapFile,FILE_WRITE|FILE_TXT|FILE_ANSI);
+   if(h>=0)
+     { FileWriteString(h,swap); FileClose(h); }
+
+   if(!pageOpened)
      {
-      FileWriteString(h,html);
-      FileClose(h);
-      if(!pageOpened)
+      string base=TerminalInfoString(TERMINAL_DATA_PATH)+"\\MQL5\\Files\\";
+      string fullMatrix=base+matrixFile;
+      string fullSpread=base+spreadFile;
+      string fullSwap  =base+swapFile;
+
+      string cmd=StringFormat("/c start \"\" \"%s\"",fullMatrix);
+      int res=ShellExecuteW(0,"open","cmd.exe",cmd,NULL,0);
+      if(res>32)
         {
-         string full=TerminalInfoString(TERMINAL_DATA_PATH)+"\\MQL5\\Files\\"+fileName;
-         int res=ShellExecuteW(0,"open",full,NULL,NULL,1);
-         if(res>32)
-            pageOpened=true;
-         else
-            MessageBoxW(0,BuildMatrixText(),"Correlation Matrix",0);
+         ShellExecuteW(0,"open",fullSpread,NULL,NULL,1);
+         ShellExecuteW(0,"open",fullSwap,NULL,NULL,1);
+         pageOpened=true;
         }
+      else
+        MessageBoxW(0,BuildMatrixText(),"Correlation Matrix",0);
      }
-   else
-     MessageBoxW(0,BuildMatrixText(),"Correlation Matrix",0);
   }
 
 //+------------------------------------------------------------------+
