@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //|                                                CorrelationMatrixEA.mq5 |
-//|   Shows a live correlation matrix in a dialog window               |
+//|   Shows a live correlation matrix in a scrollable HTML table       |
 //+------------------------------------------------------------------+
 #property copyright "2024"
 #property version   "1.00"
@@ -9,6 +9,9 @@
 
 #include <Arrays/ArrayString.mqh>
 
+#import "shell32.dll"
+int ShellExecuteW(int hwnd,string lpOperation,string lpFile,string lpParameters,string lpDirectory,int nShowCmd);
+#import
 #import "user32.dll"
 int MessageBoxW(int hWnd,string text,string caption,int type);
 #import
@@ -183,12 +186,51 @@ string BuildMatrixText()
  }
 
 //+------------------------------------------------------------------+
-//| Show matrix in a message box                                      |
+//| Build an HTML table with solid grid lines                         |
+//+------------------------------------------------------------------+
+string BuildMatrixHtml()
+  {
+   string html="<html><head><meta charset='UTF-8'><style>";
+   html+="body{font-family:monospace;}";
+   html+="div.table-container{overflow-x:auto;}";
+   html+="table{border-collapse:collapse;}";
+   html+="th,td{border:1px solid black;padding:4px;text-align:right;}";
+   html+="th:first-child{text-align:left;}";
+   html+="</style></head><body><div class='table-container'><table>";
+   html+="<tr><th></th>";
+   for(int c=0;c<cols;c++)
+      html+=StringFormat("<th>%s</th>",symbols.At(c));
+   html+="</tr>";
+   for(int r=0;r<rows;r++)
+     {
+      html+=StringFormat("<tr><th>%s</th>",symbols.At(r));
+      for(int c=0;c<cols;c++)
+        html+=StringFormat("<td>%0.2f</td>",(r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c)));
+      html+="</tr>";
+     }
+   html+="</table></div></body></html>";
+   return html;
+  }
+
+//+------------------------------------------------------------------+
+//| Generate an HTML table and open it in the default browser         |
 //+------------------------------------------------------------------+
 void ShowPopup()
   {
-   string msg=BuildMatrixText();
-   MessageBoxW(0,msg,"Correlation Matrix",0);
+   string html=BuildMatrixHtml();
+   string fileName="CorrelationMatrix.html";
+   int h=FileOpen(fileName,FILE_WRITE|FILE_TXT|FILE_ANSI);
+   if(h>=0)
+     {
+      FileWriteString(h,html);
+      FileClose(h);
+      string full=TerminalInfoString(TERMINAL_DATA_PATH)+"\\MQL5\\Files\\"+fileName;
+      int res=ShellExecuteW(0,"open",full,NULL,NULL,1);
+      if(res<=32)
+         MessageBoxW(0,BuildMatrixText(),"Correlation Matrix",0);
+     }
+   else
+     MessageBoxW(0,BuildMatrixText(),"Correlation Matrix",0);
   }
 
 //+------------------------------------------------------------------+
