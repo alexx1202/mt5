@@ -50,6 +50,7 @@ input CorrelPeriod CalcPeriod = TF_M5; // timeframe for correlations
 
 int rows, cols;                      // matrix dimensions
 datetime nextUpdate = 0;    // time for the next matrix update
+bool     pageOpened = false;         // track if browser already opened
 
 //+------------------------------------------------------------------+
 int OnInit()
@@ -190,11 +191,13 @@ string BuildMatrixText()
 //+------------------------------------------------------------------+
 string BuildMatrixHtml()
   {
-   string html="<html><head><meta charset='UTF-8'><style>";
-   html+="body{font-family:monospace;}";
+   string html="<html><head><meta charset='UTF-8'>";
+   html+=StringFormat("<meta http-equiv='refresh' content='%d'>",RefreshSeconds);
+   html+="<style>";
+   html+="body{font-family:monospace;background:black;color:white;}";
    html+="div.table-container{overflow-x:auto;}";
    html+="table{border-collapse:collapse;}";
-   html+="th,td{border:1px solid black;padding:4px;text-align:right;}";
+   html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
    html+="th:first-child{text-align:left;}";
    html+="</style></head><body><div class='table-container'><table>";
    html+="<tr><th></th>";
@@ -205,7 +208,11 @@ string BuildMatrixHtml()
      {
       html+=StringFormat("<tr><th>%s</th>",symbols.At(r));
       for(int c=0;c<cols;c++)
-        html+=StringFormat("<td>%0.2f</td>",(r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c)));
+        {
+         double val=(r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c));
+         string col=(val>=0)?"green":"red";
+         html+=StringFormat("<td style='color:%s'>%0.2f</td>",col,val);
+        }
       html+="</tr>";
      }
    html+="</table></div></body></html>";
@@ -224,10 +231,15 @@ void ShowPopup()
      {
       FileWriteString(h,html);
       FileClose(h);
-      string full=TerminalInfoString(TERMINAL_DATA_PATH)+"\\MQL5\\Files\\"+fileName;
-      int res=ShellExecuteW(0,"open",full,NULL,NULL,1);
-      if(res<=32)
-         MessageBoxW(0,BuildMatrixText(),"Correlation Matrix",0);
+      if(!pageOpened)
+        {
+         string full=TerminalInfoString(TERMINAL_DATA_PATH)+"\\MQL5\\Files\\"+fileName;
+         int res=ShellExecuteW(0,"open",full,NULL,NULL,1);
+         if(res>32)
+            pageOpened=true;
+         else
+            MessageBoxW(0,BuildMatrixText(),"Correlation Matrix",0);
+        }
      }
    else
      MessageBoxW(0,BuildMatrixText(),"Correlation Matrix",0);
