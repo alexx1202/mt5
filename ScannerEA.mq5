@@ -204,21 +204,21 @@ string BuildMatrixText(ENUM_TIMEFRAMES tf)
 //+------------------------------------------------------------------+
 string BuildMatrixTable(ENUM_TIMEFRAMES tf)
   {
-   string html="<table>";
-   html+=StringFormat("<tr><th colspan='%d' style='text-align:center;'>",cols+1);
+   string html="<table><thead>";
+   html+=StringFormat("<tr class='tf-row'><th colspan='%d'>",cols+1);
    for(int i=0;i<ArraySize(TFValues);i++)
      {
       html+=StringFormat("<button onclick=\"showTF('%s')\">%s</button>",TFNames[i],TFNames[i]);
       if(i<ArraySize(TFValues)-1) html+="&nbsp;";
      }
    html+="</th></tr>";
-   html+="<tr><th></th>";
+   html+="<tr class='head-row'><th></th>";
    for(int c=0;c<cols;c++)
       html+=StringFormat("<th>%s</th>",symbols.At(c));
-   html+="</tr>";
+   html+="</tr></thead><tbody>";
    for(int r=0;r<rows;r++)
      {
-      html+=StringFormat("<tr><th>%s</th>",symbols.At(r));
+      html+=StringFormat("<tr><th class='sym'>%s</th>",symbols.At(r));
       for(int c=0;c<cols;c++)
         {
          double val=(r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c),tf);
@@ -227,7 +227,7 @@ string BuildMatrixTable(ENUM_TIMEFRAMES tf)
         }
       html+="</tr>";
      }
-   html+="</table>";
+   html+="</tbody></table>";
    return html;
   }
 
@@ -239,20 +239,24 @@ string BuildMatrixHtml(int defaultIndex)
    string html="<html><head><meta charset='UTF-8'>";
    html+=StringFormat("<meta http-equiv='refresh' content='%d'>",RefreshSeconds);
    html+="<style>";
-   html+="body{font-family:monospace;background:black;color:white;}";
+   html+="body{font-family:monospace;background:black;color:white;margin:0;}";
+   html+="div.top-scroll{overflow-x:auto;position:sticky;top:0;background:black;}";
    html+="div.table-container{overflow-x:auto;}";
    html+="table{border-collapse:collapse;}";
    html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
    html+="th:first-child{text-align:left;}";
+   html+="th:first-child,td:first-child{position:sticky;left:0;background:black;}";
+   html+="tr.tf-row th{position:sticky;top:0;text-align:left;background:black;}";
+   html+="tr.head-row th{position:sticky;top:2.2em;background:black;}";
    html+="</style>";
-   html+="<script>function showTF(tf){var tfs=['";
+   html+="<script>function setupScroll(){var t=document.getElementById('table-container');var top=document.getElementById('top-scroll');if(!t||!top)return;top.firstElementChild.style.width=t.scrollWidth+'px';top.scrollLeft=t.scrollLeft;top.onscroll=function(){t.scrollLeft=top.scrollLeft;};t.onscroll=function(){top.scrollLeft=t.scrollLeft;};}function showTF(tf){var tfs['";
    for(int i=0;i<ArraySize(TFNames);i++)
      {
       if(i>0) html+="','";
       html+=TFNames[i];
      }
-   html+="'];for(var i=0;i<tfs.length;i++){var e=document.getElementById('tf_'+tfs[i]);if(e) e.style.display=(tfs[i]==tf)?'block':'none';}location.hash=tf;}window.onload=function(){var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);};</script>";
-   html+="</head><body><div class='table-container'>";
+   html+="'];for(var i=0;i<tfs.length;i++){var e=document.getElementById('tf_'+tfs[i]);if(e) e.style.display=(tfs[i]==tf)?'block':'none';}location.hash=tf;setupScroll();}window.onload=function(){var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);};</script>";
+   html+="</head><body><div id='top-scroll' class='top-scroll'><div></div></div><div id='table-container' class='table-container'>";
    for(int i=0;i<ArraySize(TFValues);i++)
      {
       html+=StringFormat("<div id='tf_%s' style='display:none;'>",TFNames[i]);
