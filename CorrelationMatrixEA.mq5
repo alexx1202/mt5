@@ -334,9 +334,9 @@ void ShowPopup()
       string fullSpread=base+spreadFile;
       string fullSwap  =base+swapFile;
 
-      string cmd=StringFormat("/c start \"\" \"%s\" \"%s\" \"%s\"",
-                              fullMatrix,fullSpread,fullSwap);
-      int res=ShellExecuteW(0,"open","cmd.exe",cmd,NULL,0);
+      string params=StringFormat("\"%s\" \"%s\" \"%s\"",
+                                 fullMatrix,fullSpread,fullSwap);
+      int res=ShellExecuteW(0,"open","msedge.exe",params,NULL,1);
       if(res>32)
          pageOpened=true;
       else
