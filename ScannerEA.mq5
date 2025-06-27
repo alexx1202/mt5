@@ -249,7 +249,7 @@ string BuildMatrixHtml(int defaultIndex)
    html+="tr.tf-row th{position:sticky;top:0;text-align:left;background:black;}";
    html+="tr.head-row th{position:sticky;top:2.2em;background:black;}";
    html+="</style>";
-   html+="<script>function setupScroll(){var t=document.getElementById('table-container');var top=document.getElementById('top-scroll');if(!t||!top)return;top.firstElementChild.style.width=t.scrollWidth+'px';top.scrollLeft=t.scrollLeft;top.onscroll=function(){t.scrollLeft=top.scrollLeft;};t.onscroll=function(){top.scrollLeft=t.scrollLeft;};}function showTF(tf){var tfs['";
+   html+="<script>function setupScroll(){var t=document.getElementById('table-container');var top=document.getElementById('top-scroll');if(!t||!top)return;top.firstElementChild.style.width=t.scrollWidth+'px';top.scrollLeft=t.scrollLeft;top.onscroll=function(){t.scrollLeft=top.scrollLeft;};t.onscroll=function(){top.scrollLeft=t.scrollLeft;};}function showTF(tf){var tfs=['";
    for(int i=0;i<ArraySize(TFNames);i++)
      {
       if(i>0) html+="','";
