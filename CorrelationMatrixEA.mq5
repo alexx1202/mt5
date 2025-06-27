@@ -145,6 +145,14 @@ string Pad(string s,int width)
    return s;
   }
 
+// Pad string on the left with spaces
+string PadLeft(string s,int width)
+  {
+   while(StringLen(s)<width)
+      s=" "+s;
+   return s;
+  }
+
 //+------------------------------------------------------------------+
 //| Build a simple ASCII table of correlations                         |
 //+------------------------------------------------------------------+
@@ -160,19 +168,19 @@ string HorizontalLine()
 string BuildMatrixText()
   {
    string txt=HorizontalLine()+"\n";
-   txt+="|"+Pad("",CELL_WIDTH)+"|";
-   for(int c=0;c<cols;c++)
-      txt+=Pad(symbols.At(c),CELL_WIDTH)+"|";
-   txt+="\n"+HorizontalLine()+"\n";
-   for(int r=0;r<rows;r++)
-     {
-      txt+="|"+Pad(symbols.At(r),CELL_WIDTH)+"|";
-      for(int c=0;c<cols;c++)
-        txt+=Pad(DoubleToString((r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c)),2),CELL_WIDTH)+"|";
-      txt+="\n"+HorizontalLine()+"\n";
-     }
-   return txt;
-  }
+  txt+="|"+Pad("",CELL_WIDTH)+"|";
+  for(int c=0;c<cols;c++)
+     txt+=Pad(symbols.At(c),CELL_WIDTH)+"|";
+  txt+="\n"+HorizontalLine()+"\n";
+  for(int r=0;r<rows;r++)
+    {
+     txt+="|"+Pad(symbols.At(r),CELL_WIDTH)+"|";
+     for(int c=0;c<cols;c++)
+        txt+=PadLeft(StringFormat("%0.2f",(r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c))),CELL_WIDTH)+"|";
+     txt+="\n"+HorizontalLine()+"\n";
+    }
+  return txt;
+ }
 
 //+------------------------------------------------------------------+
 //| Show matrix in a message box                                      |
