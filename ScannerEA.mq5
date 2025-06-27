@@ -240,14 +240,14 @@ string BuildMatrixHtml(int defaultIndex)
    html+=StringFormat("<meta http-equiv='refresh' content='%d'>",RefreshSeconds);
    html+="<style>";
    html+="body{font-family:monospace;background:black;color:white;margin:0;}";
-   html+="div.top-scroll{overflow-x:auto;position:sticky;top:0;background:black;}";
+  html+="div.top-scroll{overflow-x:auto;position:sticky;top:0;height:20px;background:black;}";
    html+="div.table-container{overflow-x:auto;}";
    html+="table{border-collapse:collapse;}";
    html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
    html+="th:first-child{text-align:left;}";
-   html+="th:first-child,td:first-child{position:sticky;left:0;background:black;}";
-   html+="tr.tf-row th{position:sticky;top:0;text-align:left;background:black;}";
-   html+="tr.head-row th{position:sticky;top:2.2em;background:black;}";
+  html+="th:first-child,td:first-child{position:sticky;left:0;background:black;z-index:2;}";
+  html+="tr.tf-row th{position:sticky;top:0;text-align:left;background:black;z-index:1;}";
+  html+="tr.head-row th{position:sticky;top:2.2em;background:black;z-index:1;}";
    html+="</style>";
    html+="<script>function setupScroll(){var t=document.getElementById('table-container');var top=document.getElementById('top-scroll');if(!t||!top)return;top.firstElementChild.style.width=t.scrollWidth+'px';top.scrollLeft=t.scrollLeft;top.onscroll=function(){t.scrollLeft=top.scrollLeft;};t.onscroll=function(){top.scrollLeft=t.scrollLeft;};}function showTF(tf){var tfs=['";
    for(int i=0;i<ArraySize(TFNames);i++)
