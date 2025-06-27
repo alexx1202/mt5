@@ -240,23 +240,24 @@ string BuildMatrixHtml(int defaultIndex)
    html+=StringFormat("<meta http-equiv='refresh' content='%d'>",RefreshSeconds);
    html+="<style>";
    html+="body{font-family:monospace;background:black;color:white;margin:0;}";
-  html+="div.top-scroll{overflow-x:auto;position:sticky;top:0;height:20px;background:black;z-index:3;}";
-   html+="div.table-container{overflow:auto;height:calc(100vh - 20px);}";
-   html+="table{border-collapse:collapse;}";
-   html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
-   html+="th:first-child{text-align:left;}";
+  // Removed extra top scroll bar to free up space
+  html+="div.table-container{overflow:auto;height:100vh;}";
+  html+="table{border-collapse:collapse;}";
+  html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
+  html+="th:first-child{text-align:left;}";
   html+="th:first-child,td:first-child{position:sticky;left:0;background:black;z-index:2;}";
-  html+="tr.tf-row th{position:sticky;top:20px;text-align:left;background:black;z-index:2;}";
-  html+="tr.head-row th{position:sticky;top:calc(20px + 2em);background:black;z-index:1;}";
+  // Shift timeframe and header rows up since there is no top scroll bar
+  html+="tr.tf-row th{position:sticky;top:0;text-align:left;background:black;z-index:2;}";
+  html+="tr.head-row th{position:sticky;top:2em;background:black;z-index:1;}";
    html+="</style>";
-   html+="<script>function setupScroll(){var t=document.getElementById('table-container');var top=document.getElementById('top-scroll');if(!t||!top)return;top.firstElementChild.style.width=t.scrollWidth+'px';top.scrollLeft=t.scrollLeft;top.onscroll=function(){t.scrollLeft=top.scrollLeft;};t.onscroll=function(){top.scrollLeft=t.scrollLeft;};}function showTF(tf){var tfs=['";
+   html+="<script>function showTF(tf){var tfs=['";
    for(int i=0;i<ArraySize(TFNames);i++)
      {
       if(i>0) html+="','";
       html+=TFNames[i];
      }
-   html+="'];for(var i=0;i<tfs.length;i++){var e=document.getElementById('tf_'+tfs[i]);if(e) e.style.display=(tfs[i]==tf)?'block':'none';}location.hash=tf;setupScroll();}window.onload=function(){var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);};</script>";
-   html+="</head><body><div id='top-scroll' class='top-scroll'><div></div></div><div id='table-container' class='table-container'>";
+   html+="'];for(var i=0;i<tfs.length;i++){var e=document.getElementById('tf_'+tfs[i]);if(e) e.style.display=(tfs[i]==tf)?'block':'none';}location.hash=tf;}window.onload=function(){var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);};</script>";
+   html+="</head><body><div id='table-container' class='table-container'>";
    for(int i=0;i<ArraySize(TFValues);i++)
      {
       html+=StringFormat("<div id='tf_%s' style='display:none;'>",TFNames[i]);
