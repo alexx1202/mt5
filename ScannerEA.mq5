@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|                                                CorrelationMatrixEA.mq5 |
+//|                                                    ScannerEA.mq5 |
 //|   Shows a live correlation matrix in a scrollable HTML table       |
 //+------------------------------------------------------------------+
 #property copyright "2024"
@@ -42,6 +42,19 @@ enum CorrelPeriod
    TF_W1   = PERIOD_W1,
    TF_MN1  = PERIOD_MN1
   };
+
+// names and values for available timeframes
+string TFNames[] = {"M5","M15","M30","H1","H4","D1","W1","MN1"};
+int    TFValues[] = {PERIOD_M5,PERIOD_M15,PERIOD_M30,PERIOD_H1,PERIOD_H4,PERIOD_D1,PERIOD_W1,PERIOD_MN1};
+
+// locate index of a timeframe value in the TFValues array
+int FindTFIndex(int tf)
+  {
+   for(int i=0;i<ArraySize(TFValues);i++)
+      if(TFValues[i]==tf)
+         return i;
+   return 0;
+  }
 
 input CorrelPeriod CalcPeriod = TF_M5; // timeframe for correlations
 
@@ -105,14 +118,14 @@ int GetWatchlistSymbols(CArrayString &list)
   }
 
 //+------------------------------------------------------------------+
-double CalculateCorrelation(const string a,const string b)
+double CalculateCorrelation(const string a,const string b,ENUM_TIMEFRAMES tf)
   {
    datetime end=TimeCurrent();
    const int bars=30;
-   datetime start=end-PeriodSeconds((ENUM_TIMEFRAMES)CalcPeriod)*bars;
+   datetime start=end-PeriodSeconds(tf)*bars;
    MqlRates ra[], rb[];
-   int na=CopyRates(a,(ENUM_TIMEFRAMES)CalcPeriod,start,end,ra);
-   int nb=CopyRates(b,(ENUM_TIMEFRAMES)CalcPeriod,start,end,rb);
+   int na=CopyRates(a,tf,start,end,ra);
+   int nb=CopyRates(b,tf,start,end,rb);
    int n=MathMin(na,nb);
    if(n<2) return 0.0;
    int use=MathMin(n,bars);
@@ -169,37 +182,36 @@ string HorizontalLine()
    return line;
   }
 
-string BuildMatrixText()
+string BuildMatrixText(ENUM_TIMEFRAMES tf)
   {
    string txt=HorizontalLine()+"\n";
-  txt+="|"+Pad("",CELL_WIDTH)+"|";
-  for(int c=0;c<cols;c++)
-     txt+=Pad(symbols.At(c),CELL_WIDTH)+"|";
-  txt+="\n"+HorizontalLine()+"\n";
-  for(int r=0;r<rows;r++)
-    {
-     txt+="|"+Pad(symbols.At(r),CELL_WIDTH)+"|";
-     for(int c=0;c<cols;c++)
-        txt+=PadLeft(StringFormat("%0.2f",(r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c))),CELL_WIDTH)+"|";
-     txt+="\n"+HorizontalLine()+"\n";
-    }
-  return txt;
- }
+   txt+="|"+Pad("",CELL_WIDTH)+"|";
+   for(int c=0;c<cols;c++)
+      txt+=Pad(symbols.At(c),CELL_WIDTH)+"|";
+   txt+="\n"+HorizontalLine()+"\n";
+   for(int r=0;r<rows;r++)
+     {
+      txt+="|"+Pad(symbols.At(r),CELL_WIDTH)+"|";
+      for(int c=0;c<cols;c++)
+        txt+=PadLeft(StringFormat("%0.2f",(r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c),tf)),CELL_WIDTH)+"|";
+      txt+="\n"+HorizontalLine()+"\n";
+     }
+   return txt;
+  }
 
 //+------------------------------------------------------------------+
-//| Build an HTML table with solid grid lines                         |
+//| Build a correlation table for a single timeframe                  |
 //+------------------------------------------------------------------+
-string BuildMatrixHtml()
+string BuildMatrixTable(ENUM_TIMEFRAMES tf)
   {
-   string html="<html><head><meta charset='UTF-8'>";
-   html+=StringFormat("<meta http-equiv='refresh' content='%d'>",RefreshSeconds);
-   html+="<style>";
-   html+="body{font-family:monospace;background:black;color:white;}";
-   html+="div.table-container{overflow-x:auto;}";
-   html+="table{border-collapse:collapse;}";
-   html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
-   html+="th:first-child{text-align:left;}";
-   html+="</style></head><body><div class='table-container'><table>";
+   string html="<table>";
+   html+=StringFormat("<tr><th colspan='%d' style='text-align:center;'>",cols+1);
+   for(int i=0;i<ArraySize(TFValues);i++)
+     {
+      html+=StringFormat("<button onclick=\"showTF('%s')\">%s</button>",TFNames[i],TFNames[i]);
+      if(i<ArraySize(TFValues)-1) html+="&nbsp;";
+     }
+   html+="</th></tr>";
    html+="<tr><th></th>";
    for(int c=0;c<cols;c++)
       html+=StringFormat("<th>%s</th>",symbols.At(c));
@@ -209,15 +221,47 @@ string BuildMatrixHtml()
       html+=StringFormat("<tr><th>%s</th>",symbols.At(r));
       for(int c=0;c<cols;c++)
         {
-         double val=(r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c));
+         double val=(r==c)?1.0:CalculateCorrelation(symbols.At(r),symbols.At(c),tf);
          string col=(val>=0)?"green":"red";
          html+=StringFormat("<td style='color:%s'>%0.2f</td>",col,val);
         }
       html+="</tr>";
      }
-   html+="</table></div></body></html>";
-  return html;
- }
+   html+="</table>";
+   return html;
+  }
+
+//+------------------------------------------------------------------+
+//| Build the HTML page with all timeframe tables                     |
+//+------------------------------------------------------------------+
+string BuildMatrixHtml(int defaultIndex)
+  {
+   string html="<html><head><meta charset='UTF-8'>";
+   html+=StringFormat("<meta http-equiv='refresh' content='%d'>",RefreshSeconds);
+   html+="<style>";
+   html+="body{font-family:monospace;background:black;color:white;}";
+   html+="div.table-container{overflow-x:auto;}";
+   html+="table{border-collapse:collapse;}";
+   html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
+   html+="th:first-child{text-align:left;}";
+   html+="</style>";
+   html+="<script>function showTF(tf){var tfs=['";
+   for(int i=0;i<ArraySize(TFNames);i++)
+     {
+      if(i>0) html+="','";
+      html+=TFNames[i];
+     }
+   html+="'];for(var i=0;i<tfs.length;i++){var e=document.getElementById('tf_'+tfs[i]);if(e) e.style.display=(tfs[i]==tf)?'block':'none';}location.hash=tf;}window.onload=function(){var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);};</script>";
+   html+="</head><body><div class='table-container'>";
+   for(int i=0;i<ArraySize(TFValues);i++)
+     {
+      html+=StringFormat("<div id='tf_%s' style='display:none;'>",TFNames[i]);
+      html+=BuildMatrixTable((ENUM_TIMEFRAMES)TFValues[i]);
+      html+="</div>";
+     }
+   html+="</div></body></html>";
+   return html;
+  }
 
 //+------------------------------------------------------------------+
 //| Build HTML table for spread percentages                           |
@@ -308,18 +352,20 @@ string BuildSwapHtml()
 //+------------------------------------------------------------------+
 void ShowPopup()
   {
-   // generate the HTML strings first
-   string matrix_html = BuildMatrixHtml();
+   // generate updated HTML content
    string spread_html = BuildSpreadHtml();
    string swap_html   = BuildSwapHtml();
 
-   string matrixFile="CorrelationMatrix.html";
-   string spreadFile="SpreadScan.html";
-   string swapFile="SwapScan.html";
+   int defaultIndex = FindTFIndex((int)CalcPeriod);
 
+   string matrix_html = BuildMatrixHtml(defaultIndex);
+   string matrixFile="CorrelationMatrix.html";
    int h = FileOpen(matrixFile, FILE_WRITE | FILE_TXT | FILE_ANSI);
    if(h >= 0)
      { FileWriteString(h, matrix_html); FileClose(h); }
+
+   string spreadFile="SpreadScan.html";
+   string swapFile="SwapScan.html";
    h = FileOpen(spreadFile, FILE_WRITE | FILE_TXT | FILE_ANSI);
    if(h >= 0)
      { FileWriteString(h, spread_html); FileClose(h); }
@@ -340,7 +386,7 @@ void ShowPopup()
       if(res>32)
          pageOpened=true;
       else
-        MessageBoxW(0,BuildMatrixText(),"Correlation Matrix",0);
+        MessageBoxW(0,BuildMatrixText((ENUM_TIMEFRAMES)CalcPeriod),"Correlation Matrix",0);
      }
   }
 
