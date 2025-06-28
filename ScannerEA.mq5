@@ -397,11 +397,11 @@ string BuildSpreadSwapHtml()
    html+=StringFormat("<meta http-equiv='refresh' content='%d'>",RefreshSeconds);
    html+="<style>";
    html+="body{font-family:monospace;background:black;color:white;margin:0;}";
-   html+="div.wrapper{display:flex;gap:20px;flex-wrap:wrap;}";
-   html+="div.table-container{overflow-x:auto;}";
-   html+="table{border-collapse:collapse;}";
-   html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
-   html+="th:first-child{text-align:left;}";
+  html+="div.wrapper{display:flex;gap:20px;flex-wrap:wrap;}";
+  html+="div.table-container{overflow-x:auto;}";
+  html+="table{border-collapse:collapse;}";
+  html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
+  html+="th:first-child{text-align:left;}";
    html+="</style></head><body><div class='wrapper'>";
 
    // Spread table
@@ -427,11 +427,59 @@ string BuildSpreadSwapHtml()
       html+=StringFormat("<tr><td>%s</td><td style='color:%s'>%0.2f</td><td style='color:%s'>%0.2f</td></tr>",
                         sym,colLong,swapLong,colShort,swapShort);
      }
-   html+="</table></div>";
+  html+="</table></div>";
 
-   html+="</div></body></html>";
-   return html;
-  }
+  // Position size calculator table
+  string opts="";
+  for(int i=0;i<total;i++)
+     opts+=StringFormat("<option value='%s'>%s</option>",symbols.At(i),symbols.At(i));
+
+  double accBal=AccountInfoDouble(ACCOUNT_BALANCE);
+  double freeMargin=AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+  string symInfo="var symbolInfo={";
+  for(int i=0;i<total;i++)
+    {
+     string s=symbols.At(i);
+     double price=SymbolInfoDouble(s,SYMBOL_ASK);
+     int digits=(int)SymbolInfoInteger(s,SYMBOL_DIGITS);
+     double pt=SymbolInfoDouble(s,SYMBOL_POINT);
+     double tv=SymbolInfoDouble(s,SYMBOL_TRADE_TICK_VALUE);
+     double ts=SymbolInfoDouble(s,SYMBOL_TRADE_TICK_SIZE);
+     double cs=SymbolInfoDouble(s,SYMBOL_TRADE_CONTRACT_SIZE);
+     symInfo+=StringFormat("'%s':{p:%f,d:%d,pt:%f,tv:%f,ts:%f,cs:%f},",s,price,digits,pt,tv,ts,cs);
+    }
+  if(StringLen(symInfo)>13)
+     StringSetCharacter(symInfo,StringLen(symInfo)-1,'}');
+  else
+     symInfo+="}";
+  symInfo+=";";
+
+  html+="<div class='table-container'><table>";
+  html+="<tr><th colspan='2'>Position Size Calc";
+  html+="</th></tr>";
+  html+="<tr><td>Symbol</td><td><select id='ps_symbol'>"+opts+"</select></td></tr>";
+  html+="<tr><td>Risk Mode</td><td><select id='risk_mode'><option value='pct'>Risk %</option><option value='aud'>Fixed AUD</option></select></td></tr>";
+  html+="<tr><td>Fixed Risk AUD</td><td><input id='fixed_risk' type='number' value='100'/></td></tr>";
+  html+="<tr><td>Risk %</td><td><input id='risk_pct' type='number' value='1'/></td></tr>";
+  html+="<tr><td>SL Unit</td><td><select id='sl_unit'><option value='pips'>Pips</option><option value='points'>Points</option></select></td></tr>";
+  html+="<tr><td>SL Value</td><td><input id='sl_value' type='number' value='20'/></td></tr>";
+  html+="<tr><td>Broker</td><td><select id='broker_mode'><option value='pepper'>Pepperstone</option><option value='oanda'>OANDA</option></select></td></tr>";
+  html+="<tr><td>RR Ratio</td><td><input id='rr_ratio' type='number' value='2'/></td></tr>";
+  html+="<tr><td>Side</td><td><select id='order_side'><option value='buy'>Buy</option><option value='sell'>Sell</option></select></td></tr>";
+  html+="<tr><td>OANDA Balance</td><td><input id='oanda_balance' type='number' value='0'/></td></tr>";
+  html+="<tr><td>Commission/Lot</td><td><input id='commission' type='number' value='7'/></td></tr>";
+  html+="<tr><td>Volume Step</td><td><input id='volume_step' type='number' value='0.01' step='0.00001'/></td></tr>";
+  html+="<tr><td>Min Net Profit</td><td><input id='min_net' type='number' value='20'/></td></tr>";
+  html+="<tr><td colspan='2' style='text-align:center;'><button onclick='calcPosition()'>Calculate</button></td></tr>";
+  html+="</table></div>";
+
+  html+="</div><script>"+symInfo+"var accBal="+DoubleToString(accBal,2)+";var freeMarg="+DoubleToString(freeMargin,2)+";"+
+  "function getLev(sym){sym=sym.toUpperCase();if(sym.includes('USD')&&(sym.includes('EUR')||sym.includes('GBP')||sym.includes('AUD')||sym.includes('NZD')||sym.includes('CAD')||sym.includes('CHF')||sym.includes('JPY')))return 30;if(sym.length==6||sym.length==7)return 20;if(sym.includes('XAU')||sym.includes('US500')||sym.includes('NAS')||sym.includes('UK')||sym.includes('GER'))return 20;if(sym.includes('XAG')||sym.includes('WTI')||sym.includes('BRENT'))return 10;if(sym.includes('BTC')||sym.includes('ETH')||sym.includes('LTC')||sym.includes('XRP'))return 2;return 5;}"+
+  "function dl(name,text){var b=new Blob([text]);var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href);}"+
+  "function calcPosition(){var s=document.getElementById('ps_symbol').value;var inf=symbolInfo[s];var price=inf.p;var digits=inf.d;var pipSize=Math.pow(10,-digits+1);var pipVal=inf.tv*pipSize/inf.ts;var slUnit=document.getElementById('sl_unit').value;var slVal=parseFloat(document.getElementById('sl_value').value);var slPips=(slUnit=='pips')?slVal:slVal*inf.pt/pipSize;var bro=document.getElementById('broker_mode').value;var volStep=parseFloat(document.getElementById('volume_step').value);var comm=parseFloat(document.getElementById('commission').value);if(bro=='oanda'){if(comm==7)comm=0;volStep=0.00001;}else{volStep=0.01;}var bal=accBal;if(bro=='oanda'){var ob=parseFloat(document.getElementById('oanda_balance').value);if(ob>0)bal=ob;}var riskMode=document.getElementById('risk_mode').value;var riskAmt=(riskMode=='aud')?parseFloat(document.getElementById('fixed_risk').value):bal*parseFloat(document.getElementById('risk_pct').value)/100;if(riskAmt<=0)return;var lotRaw=riskAmt/(slPips*pipVal+comm);var lot=Math.ceil(lotRaw/volStep)*volStep;var lotPrec=Math.round(Math.log10(1/volStep));lot=parseFloat(lot.toFixed(lotPrec));var commiss=lot*comm;var rr=parseFloat(document.getElementById('rr_ratio').value);var tpP=slPips*rr;var netReward=tpP*pipVal*lot-commiss;var minNet=parseFloat(document.getElementById('min_net').value);var reqProfit=Math.max(riskAmt*rr,minNet);while(netReward<reqProfit){tpP+=0.5;netReward=tpP*pipVal*lot-commiss;}var side=document.getElementById('order_side').value;var buy=side=='buy';var slPrice=buy?price-slPips*pipSize:price+slPips*pipSize;var tpPrice=buy?price+tpP*pipSize:price-tpP*pipSize;var out='=== Position Size Calculation ===\n';out+='Symbol: '+s+'\n';out+='Trade Side: '+(buy?'Buy':'Sell')+'\n';out+='Account Balance: AUD'+bal.toFixed(2)+'\n';out+='Risk Amount: AUD'+riskAmt.toFixed(2)+'\n';out+='Lot Size: '+lot.toFixed(lotPrec)+'\n';out+='Commission: AUD'+commiss.toFixed(2)+'\n';out+='Net Risk: AUD'+(slPips*pipVal*lot+commiss).toFixed(2)+'\n';out+='Stop Loss Price: '+slPrice.toFixed(digits)+' ('+slVal+' '+(slUnit=='pips'?'pips':'points')+')\n';out+='Take Profit Price: '+tpPrice.toFixed(digits)+' ('+tpP.toFixed(1)+' pips | RR=1:'+rr.toFixed(2)+')\n';out+='Expected Net Profit at TP: AUD'+netReward.toFixed(2)+'\n';out+='Minimum Net Profit Target: AUD'+minNet.toFixed(2)+'\n';var lev=getLev(s);var contract=inf.cs;var notion=lot*contract*price;var margin=notion/lev;out+='Margin Needed: '+margin.toFixed(2)+'\n';var ts=new Date().toISOString().replace(/[:T]/g,'-').split('.')[0];dl('PositionSizeOutput-'+ts+'.txt',out);if(bro=='oanda'){var qty=Math.round(lot*100000);var json='{\n "symbol": "{{ticker}}",\n "action": "'+(buy?'buy':'sell')+'",\n "quantity": '+qty+',\n "take_profit_price": "{{close}} '+(buy?'+':'-')+' '+(tpP*pipSize).toFixed(3)+'",\n "stop_loss_price": "{{close}} '+(buy?'-':'+')+' '+(slPips*pipSize).toFixed(3)+'"\n}\n\nWEBHOOK (OANDA):\nhttps://app.signalstack.com/hook/kiwPq16apN3xpy5eMPDovH\n';dl('OANDA_Swing.txt',json);}}";
+  html+="</script></body></html>";
+  return html;
+ }
 
 //+------------------------------------------------------------------+
 //| Generate an HTML table and open it in the default browser         |
