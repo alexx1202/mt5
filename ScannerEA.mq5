@@ -430,7 +430,7 @@ string BuildSpreadSwapHtml()
                         sym,colLong,swapLong,colShort,swapShort);
      }
   html+="</table></div>";
-  html+="<div class='table-container'><table id='ps_result'><tr><th colspan='2'>Last Calculation</th></tr></table></div>";
+  html+="<div class='table-container'><table id='ps_result'><tr><th colspan='2'>Last Calculation</th></tr></table><button id='ps_download' onclick='downloadFiles()' style='display:none;margin-top:4px;'>Download Files</button></div>";
 
   // Position size calculator table
   string opts="";
@@ -483,6 +483,8 @@ string BuildSpreadSwapHtml()
   "function loadInputs(){var j=localStorage.getItem('ps_inputs');if(!j)return;try{var o=JSON.parse(j);for(var k in o){var e=el(k);if(e)e.value=o[k];}}catch(e){}}"+
   "function getLev(sym){sym=sym.toUpperCase();if(sym.includes('USD')&&(sym.includes('EUR')||sym.includes('GBP')||sym.includes('AUD')||sym.includes('NZD')||sym.includes('CAD')||sym.includes('CHF')||sym.includes('JPY')))return 30;if(sym.length==6||sym.length==7)return 20;if(sym.includes('XAU')||sym.includes('US500')||sym.includes('NAS')||sym.includes('UK')||sym.includes('GER'))return 20;if(sym.includes('XAG')||sym.includes('WTI')||sym.includes('BRENT'))return 10;if(sym.includes('BTC')||sym.includes('ETH')||sym.includes('LTC')||sym.includes('XRP'))return 2;return 5;}"+
   "function dl(name,text){var b=new Blob([text]);var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href);}"+
+  "var lastTxt='';var lastJson='';"+
+  "function downloadFiles(){var t=localStorage.getItem('ps_last_txt');if(!t)return;var ts=new Date().toISOString().replace(/[:T]/g,'-').split('.')[0];dl('PositionSizeOutput-'+ts+'.txt',t);var j=localStorage.getItem('ps_last_json');if(j)dl('OANDA_Swing.txt',j);}"+
   "function calcPosition(){var s=el('ps_symbol').value;var inf=symbolInfo[s];var price=inf.p;var digits=inf.d;"+
   "var pipSize=Math.pow(10,-digits+1);var pipVal=inf.tv*pipSize/inf.ts;"+
   "var slUnit=el('sl_unit').value;var slVal=parseFloat(el('sl_value').value);"+
@@ -507,16 +509,17 @@ string BuildSpreadSwapHtml()
   "out+='Expected Net Profit at TP: AUD'+netReward.toFixed(2)+'\\n';out+='Minimum Net Profit Target: AUD'+minNet.toFixed(2)+'\\n';"+
   "var lev=getLev(s);var contract=inf.cs;var notion=lot*contract*price;var margin=notion/lev;"+
   "out+='Margin Needed: '+margin.toFixed(2)+'\\n';"+
-  "var ts=new Date().toISOString().replace(/[:T]/g,'-').split('.')[0];dl('PositionSizeOutput-'+ts+'.txt',out);"+
-  "if(bro=='oanda'){var qty=Math.round(lot*100000);var json='{\\n \"symbol\": \"{{ticker}}\",\\n \"action\": \"'+(buy?'buy':'sell')+'\",\\n \"quantity\": '+qty+',\\n \"take_profit_price\": \"{{close}} '+(buy?'+':'-')+' '+(tpP*pipSize).toFixed(3)+'\",\\n \"stop_loss_price\": \"{{close}} '+(buy?'-':'+')+' '+(slPips*pipSize).toFixed(3)+'\"\\n}\\n\\nWEBHOOK (OANDA):\\nhttps://app.signalstack.com/hook/kiwPq16apN3xpy5eMPDovH\\n';dl('OANDA_Swing.txt',json);}"+
+  "lastTxt=out;lastJson='';"+
+  "if(bro=='oanda'){var qty=Math.round(lot*100000);lastJson='{\\n \"symbol\": \"{{ticker}}\",\\n \"action\": \"'+(buy?'buy':'sell')+'\",\\n \"quantity\": '+qty+',\\n \"take_profit_price\": \"{{close}} '+(buy?'+':'-')+' '+(tpP*pipSize).toFixed(3)+'\",\\n \"stop_loss_price\": \"{{close}} '+(buy?'-':'+')+' '+(slPips*pipSize).toFixed(3)+'\"\\n}\\n\\nWEBHOOK (OANDA):\\nhttps://app.signalstack.com/hook/kiwPq16apN3xpy5eMPDovH\\n';}"+
+  "localStorage.setItem('ps_last_txt',lastTxt);localStorage.setItem('ps_last_json',lastJson);el('ps_download').style.display='inline';"+
   "var r='<tr><th colspan=\"2\">Last Calculation</th></tr>';"+
   "r+='<tr><td>Lot Size</td><td>'+lot.toFixed(lotPrec)+'</td></tr>';"+
   "r+='<tr><td>Stop Loss</td><td>'+slPrice.toFixed(digits)+'</td></tr>';"+
   "r+='<tr><td>Take Profit</td><td>'+tpPrice.toFixed(digits)+'</td></tr>';"+
   "r+='<tr><td>Margin</td><td>'+margin.toFixed(2)+'</td></tr>';"+
   "r+='<tr><td>Net Profit</td><td>'+netReward.toFixed(2)+'</td></tr>';"+
-  "document.getElementById('ps_result').innerHTML=r;saveInputs();}"+
-  "window.onload=function(){loadInputs();var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);var ins=document.querySelectorAll('#ps_form input,#ps_form select');for(var i=0;i<ins.length;i++)ins[i].addEventListener('change',saveInputs);};"+
+  "document.getElementById('ps_result').innerHTML=r;localStorage.setItem('ps_result',r);saveInputs();}"+
+  "window.onload=function(){loadInputs();var r=localStorage.getItem('ps_result');if(r)el('ps_result').innerHTML=r;if(localStorage.getItem('ps_last_txt'))el('ps_download').style.display='inline';var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);var ins=document.querySelectorAll('#ps_form input,#ps_form select');for(var i=0;i<ins.length;i++)ins[i].addEventListener('change',saveInputs);};"+
   "</script></body></html>";
   return html;
  }
