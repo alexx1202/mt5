@@ -11,6 +11,16 @@
 //--- trade object
 CTrade trade;
 
+//+------------------------------------------------------------------+
+//| Helper: get day of week (0=Sunday..6=Saturday)                    |
+//+------------------------------------------------------------------+
+int GetDayOfWeek(datetime t)
+  {
+   MqlDateTime tm;
+   TimeToStruct(t,tm);
+   return tm.day_of_week;
+  }
+
 input int    TimerSeconds   = 60; // interval for timer checks
 input string LogFileName    = "WeekendCloseLog.csv"; // log file
 
@@ -24,7 +34,7 @@ datetime SecondSundayMarch(int year)
    dt.mon=3;
    dt.day=1;
    datetime d=StructToTime(dt);
-   while(TimeDayOfWeek(d)!=0)
+   while(GetDayOfWeek(d)!=0)
       d+=86400;
    d+=7*86400; // second Sunday
    return d;
@@ -40,7 +50,7 @@ datetime FirstSundayNovember(int year)
    dt.mon=11;
    dt.day=1;
    datetime d=StructToTime(dt);
-   while(TimeDayOfWeek(d)!=0)
+   while(GetDayOfWeek(d)!=0)
       d+=86400;
    return d;
   }
@@ -95,7 +105,7 @@ void CheckWeekendClose()
   {
    datetime now=TimeLocal();
    MqlDateTime tm; TimeToStruct(now,tm);
-   if(TimeDayOfWeek(now)==6) // Saturday
+   if(GetDayOfWeek(now)==6) // Saturday
      {
       bool dst=USDST(now);
       int cutoff=dst?5:6;
