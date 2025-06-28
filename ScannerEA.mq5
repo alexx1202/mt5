@@ -349,6 +349,87 @@ string BuildSwapHtml()
                         sym,colLong,swapLong,colShort,swapShort);
     }
    html+="</table></div></body></html>";
+  return html;
+ }
+
+//+------------------------------------------------------------------+
+//| Build a combined HTML page showing spread and swap tables side by |
+//| side. This keeps the existing table styles but places them in a   |
+//| single page using a flex container so they appear next to each    |
+//| other.                                                            |
+//+------------------------------------------------------------------+
+string BuildSpreadSwapHtml()
+  {
+   int total = symbols.Total();
+   string syms[];
+   double spreads[];
+   ArrayResize(syms,total);
+   ArrayResize(spreads,total);
+
+   // Collect spread information
+   for(int i=0;i<total;i++)
+     {
+      syms[i]=symbols.At(i);
+      double bid,ask,point;
+      if(!SymbolInfoDouble(syms[i],SYMBOL_BID,bid) ||
+         !SymbolInfoDouble(syms[i],SYMBOL_ASK,ask) ||
+         !SymbolInfoDouble(syms[i],SYMBOL_POINT,point))
+        {
+         spreads[i]=0.0;
+         continue;
+        }
+      double raw=ask-bid;
+      double sprd=(raw>0)?raw:point;
+      spreads[i]=(sprd/bid)*100.0;
+     }
+
+   // Sort spreads ascending to match previous behaviour
+   for(int i=0;i<total-1;i++)
+      for(int j=0;j<total-1-i;j++)
+         if(spreads[j]>spreads[j+1])
+           {
+            double td=spreads[j]; spreads[j]=spreads[j+1]; spreads[j+1]=td;
+            string ts=syms[j];    syms[j]=syms[j+1];    syms[j+1]=ts;
+           }
+
+   // Build the HTML page
+   string html="<html><head><meta charset='UTF-8'>";
+   html+=StringFormat("<meta http-equiv='refresh' content='%d'>",RefreshSeconds);
+   html+="<style>";
+   html+="body{font-family:monospace;background:black;color:white;margin:0;}";
+   html+="div.wrapper{display:flex;gap:20px;flex-wrap:wrap;}";
+   html+="div.table-container{overflow-x:auto;}";
+   html+="table{border-collapse:collapse;}";
+   html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
+   html+="th:first-child{text-align:left;}";
+   html+="</style></head><body><div class='wrapper'>";
+
+   // Spread table
+   html+="<div class='table-container'><table>";
+   html+="<tr><th>Symbol</th><th>Spread %</th></tr>";
+   for(int i=0;i<total;i++)
+      html+=StringFormat("<tr><td>%s</td><td>%0.10f</td></tr>",syms[i],spreads[i]);
+   html+="</table></div>";
+
+   // Swap table
+   html+="<div class='table-container'><table>";
+   html+="<tr><th>Symbol</th><th>Swap Long</th><th>Swap Short</th></tr>";
+   for(int i=0;i<total;i++)
+     {
+      string sym=symbols.At(i);
+      double swapLong,swapShort;
+      if(!SymbolInfoDouble(sym,SYMBOL_SWAP_LONG,swapLong) ||
+         !SymbolInfoDouble(sym,SYMBOL_SWAP_SHORT,swapShort))
+        { swapLong=0.0; swapShort=0.0; }
+
+      string colLong  = (swapLong<0)?"red":"green";
+      string colShort = (swapShort<0)?"red":"green";
+      html+=StringFormat("<tr><td>%s</td><td style='color:%s'>%0.2f</td><td style='color:%s'>%0.2f</td></tr>",
+                        sym,colLong,swapLong,colShort,swapShort);
+     }
+   html+="</table></div>";
+
+   html+="</div></body></html>";
    return html;
   }
 
@@ -358,8 +439,7 @@ string BuildSwapHtml()
 void ShowPopup()
   {
    // generate updated HTML content
-   string spread_html = BuildSpreadHtml();
-   string swap_html   = BuildSwapHtml();
+   string combined_html = BuildSpreadSwapHtml();
 
    int defaultIndex = FindTFIndex((int)CalcPeriod);
 
@@ -369,24 +449,19 @@ void ShowPopup()
    if(h >= 0)
      { FileWriteString(h, matrix_html); FileClose(h); }
 
-   string spreadFile="SpreadScan.html";
-   string swapFile="SwapScan.html";
-   h = FileOpen(spreadFile, FILE_WRITE | FILE_TXT | FILE_ANSI);
+   string combinedFile="SpreadSwap.html";
+   h = FileOpen(combinedFile, FILE_WRITE | FILE_TXT | FILE_ANSI);
    if(h >= 0)
-     { FileWriteString(h, spread_html); FileClose(h); }
-   h = FileOpen(swapFile, FILE_WRITE | FILE_TXT | FILE_ANSI);
-   if(h >= 0)
-     { FileWriteString(h, swap_html); FileClose(h); }
+     { FileWriteString(h, combined_html); FileClose(h); }
 
    if(!pageOpened)
      {
       string base=TerminalInfoString(TERMINAL_DATA_PATH)+"\\MQL5\\Files\\";
       string fullMatrix=base+matrixFile;
-      string fullSpread=base+spreadFile;
-      string fullSwap  =base+swapFile;
+      string fullCombined=base+combinedFile;
 
-      string params=StringFormat("\"%s\" \"%s\" \"%s\"",
-                                 fullMatrix,fullSpread,fullSwap);
+      string params=StringFormat("\"%s\" \"%s\"",
+                                 fullMatrix,fullCombined);
       int res=ShellExecuteW(0,"open","msedge.exe",params,NULL,1);
       if(res>32)
          pageOpened=true;
