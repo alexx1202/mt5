@@ -360,6 +360,8 @@ string BuildSwapHtml()
 //+------------------------------------------------------------------+
 string BuildSpreadSwapHtml()
   {
+   // Determine which timeframe should be shown by default
+   int defaultIndex = FindTFIndex((int)CalcPeriod);
    int total = symbols.Total();
    string syms[];
    double spreads[];
