@@ -72,7 +72,7 @@ void CloseAll()
       if(trade.PositionClose(ticket))
         {
          string dateStr=TimeToString(TimeLocal(),TIME_DATE|TIME_MINUTES);
-         FileHandle fh=FileOpen(LogFileName,FILE_READ|FILE_WRITE|FILE_CSV|FILE_ANSI);
+         int fh=FileOpen(LogFileName,FILE_READ|FILE_WRITE|FILE_CSV|FILE_ANSI);
          if(fh!=INVALID_HANDLE)
            {
             if(FileSize(fh)==0)
