@@ -429,7 +429,10 @@ string BuildSpreadSwapHtml()
                         sym,colLong,swapLong,colShort,swapShort);
      }
   html+="</table></div>";
-  html+="<div class='table-container'><table id='ps_result'><tr><th colspan='2'>Last Calculation</th></tr></table><button id='ps_download' onclick='downloadFiles()' style='display:none;margin-top:4px;'>Download Files</button></div>";
+  html+="<div class='table-container'><table id='ps_result'><tr><th colspan='2'>Last Calculation</th></tr></table>";
+  html+="<button id='ps_download' onclick='downloadFiles()' style='display:none;margin-top:4px;'>Download Files</button>";
+  html+="<button id='ps_copy_webhook' onclick='copyWebhook()' style='display:none;margin-top:4px;'>Copy Webhook</button>";
+  html+="<button id='ps_copy_json' onclick='copyJson()' style='display:none;margin-top:4px;'>Copy JSON</button></div>";
 
   // Position size calculator table
   string opts="";
@@ -460,12 +463,12 @@ string BuildSpreadSwapHtml()
   html+="<tr><th colspan='2'>Position Size Calc";
   html+="</th></tr>";
   html+="<tr><td>Symbol</td><td><select id='ps_symbol'>"+opts+"</select></td></tr>";
-  html+="<tr><td>Risk Mode</td><td><select id='risk_mode'><option value='pct'>Risk %</option><option value='aud'>Fixed AUD</option></select></td></tr>";
+  html+="<tr><td>Risk Mode</td><td><select id='risk_mode' onchange='updateVis()'><option value='pct'>Risk %</option><option value='aud'>Fixed AUD</option></select></td></tr>";
   html+="<tr id='tr_fixed_risk'><td>Fixed Risk AUD</td><td><input id='fixed_risk' type='number' value='100'/></td></tr>";
   html+="<tr id='tr_risk_pct'><td>Risk %</td><td><input id='risk_pct' type='number' value='1'/></td></tr>";
   html+="<tr><td>SL Unit</td><td><select id='sl_unit'><option value='pips'>Pips</option><option value='points'>Points</option></select></td></tr>";
   html+="<tr><td>SL Value</td><td><input id='sl_value' type='number' value='20'/></td></tr>";
-  html+="<tr><td>Broker</td><td><select id='broker_mode'><option value='pepper'>Pepperstone</option><option value='oanda'>OANDA</option></select></td></tr>";
+  html+="<tr><td>Broker</td><td><select id='broker_mode' onchange='updateVis()'><option value='pepper'>Pepperstone</option><option value='oanda'>OANDA</option></select></td></tr>";
   html+="<tr><td>RR Ratio</td><td><input id='rr_ratio' type='number' value='2'/></td></tr>";
   html+="<tr><td>Side</td><td><select id='order_side'><option value='buy'>Buy</option><option value='sell'>Sell</option></select></td></tr>";
   html+="<tr id='tr_oanda_balance'><td>OANDA Balance</td><td><input id='oanda_balance' type='number' value='0'/></td></tr>";
@@ -482,8 +485,10 @@ string BuildSpreadSwapHtml()
   "function loadInputs(){var j=localStorage.getItem('ps_inputs');if(!j)return;try{var o=JSON.parse(j);for(var k in o){var e=el(k);if(e)e.value=o[k];}}catch(e){}}"+
   "function getLev(sym){sym=sym.toUpperCase();if(sym.includes('USD')&&(sym.includes('EUR')||sym.includes('GBP')||sym.includes('AUD')||sym.includes('NZD')||sym.includes('CAD')||sym.includes('CHF')||sym.includes('JPY')))return 30;if(sym.length==6||sym.length==7)return 20;if(sym.includes('XAU')||sym.includes('US500')||sym.includes('NAS')||sym.includes('UK')||sym.includes('GER'))return 20;if(sym.includes('XAG')||sym.includes('WTI')||sym.includes('BRENT'))return 10;if(sym.includes('BTC')||sym.includes('ETH')||sym.includes('LTC')||sym.includes('XRP'))return 2;return 5;}"+
   "function dl(name,text){var b=new Blob([text]);var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href);}"+
+  "function copyWebhook(){var url='https://app.signalstack.com/hook/kiwPq16apN3xpy5eMPDovH';navigator.clipboard.writeText(url);}"+
+  "function copyJson(){if(lastJson)navigator.clipboard.writeText(lastJson);}"+
   "var lastTxt='';var lastJson='';"+
-  "function updateVis(){var b=el('broker_mode').value;el('tr_oanda_balance').style.display=(b=='oanda')?'table-row':'none';el('tr_commission').style.display=(b=='pepper')?'table-row':'none';var m=el('risk_mode').value;el('tr_fixed_risk').style.display=(m=='aud')?'table-row':'none';el('tr_risk_pct').style.display=(m=='pct')?'table-row':'none';}"+
+  "function updateVis(){var b=el('broker_mode').value;el('tr_oanda_balance').style.display=(b=='oanda')?'table-row':'none';el('tr_commission').style.display=(b=='pepper')?'table-row':'none';el('ps_copy_webhook').style.display=(b=='oanda')?'inline':'none';el('ps_copy_json').style.display=(b=='oanda')?'inline':'none';var m=el('risk_mode').value;el('tr_fixed_risk').style.display=(m=='aud')?'table-row':'none';el('tr_risk_pct').style.display=(m=='pct')?'table-row':'none';}"+
   "function downloadFiles(){var t=localStorage.getItem('ps_last_txt');if(!t)return;var ts=new Date().toISOString().replace(/[:T]/g,'-').split('.')[0];dl('PositionSizeOutput-'+ts+'.txt',t);}"+
   "function calcPosition(){var s=el('ps_symbol').value;var inf=symbolInfo[s];var price=inf.p;var digits=inf.d;"+
   "var pipSize=Math.pow(10,-digits+1);var pipVal=inf.tv*pipSize/inf.ts;"+
@@ -513,7 +518,7 @@ string BuildSpreadSwapHtml()
   "var lev=getLev(s);var contract=inf.cs;var notion=lot*contract*price;var margin=notion/lev;"+
   "out+='Margin Needed: '+margin.toFixed(2)+'\\n';"+
   "lastTxt=out;lastJson='';"+
-  "if(bro=='oanda'){var qty=Math.round(lot*100000);lastJson='{\\n \"symbol\": \"{{ticker}}\",\\n \"action\": \"'+(buy?'buy':'sell')+'\",\\n \"quantity\": '+qty+',\\n \"take_profit_price\": \"{{close}} '+(buy?'+':'-')+' '+(tpP*pipSize).toFixed(3)+'\",\\n \"stop_loss_price\": \"{{close}} '+(buy?'-':'+')+' '+(slPips*pipSize).toFixed(3)+'\"\\n}\\n\\nWEBHOOK (OANDA):\\nhttps://app.signalstack.com/hook/kiwPq16apN3xpy5eMPDovH\\n';}"+
+  "if(bro=='oanda'){var qty=Math.round(lot*100000);lastJson='{\\n \"symbol\": \"{{ticker}}\",\\n \"action\": \"'+(buy?'buy':'sell')+'\",\\n \"quantity\": '+qty+',\\n \"take_profit_price\": \"{{close}} '+(buy?'+':'-')+' '+(tpP*pipSize).toFixed(3)+'\",\\n \"stop_loss_price\": \"{{close}} '+(buy?'-':'+')+' '+(slPips*pipSize).toFixed(3)+'\"\\n}';}"+
   "localStorage.setItem('ps_last_txt',lastTxt);localStorage.setItem('ps_last_json',lastJson);el('ps_download').style.display='inline';"+
   "var r='<tr><th colspan=\"2\">Last Calculation</th></tr>';"+
   "r+='<tr><td>Lot Size</td><td>'+lot.toFixed(lotPrec)+'</td></tr>';"+
@@ -521,10 +526,10 @@ string BuildSpreadSwapHtml()
   "r+='<tr><td>Take Profit</td><td>'+tpDisp+'</td></tr>';"+
   "r+='<tr><td>Margin</td><td>'+margin.toFixed(2)+'</td></tr>';"+
   "r+='<tr><td>Net Risk</td><td>'+netRisk.toFixed(2)+'</td></tr>';"+
-  "if(bro=='pepper'&&isFx)r+='<tr><td>Commission</td><td>'+commiss.toFixed(2)+'</td></tr>';"+
+  "if(bro=='pepper')r+='<tr><td>Commission</td><td>'+commiss.toFixed(2)+'</td></tr>';"+
   "r+='<tr><td>Net Profit</td><td>'+netReward.toFixed(2)+'</td></tr>';"+
-  "if(bro=='oanda'){r+='<tr><td>JSON</td><td><pre>'+lastJson+'</pre></td></tr>';r+='<tr><td>Webhook</td><td>https://app.signalstack.com/hook/kiwPq16apN3xpy5eMPDovH</td></tr>';}"+
-  "document.getElementById('ps_result').innerHTML=r;localStorage.setItem('ps_result',r);saveInputs();}"+
+  "if(bro=='oanda'){el('ps_copy_webhook').style.display='inline';el('ps_copy_json').style.display='inline';}"+
+  "document.getElementById('ps_result').innerHTML=r;localStorage.setItem('ps_result',r);saveInputs();updateVis();}"+
   "window.onload=function(){loadInputs();updateVis();var r=localStorage.getItem('ps_result');if(r)el('ps_result').innerHTML=r;if(localStorage.getItem('ps_last_txt'))el('ps_download').style.display='inline';var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);var ins=document.querySelectorAll('#ps_form input,#ps_form select');for(var i=0;i<ins.length;i++)ins[i].addEventListener('change',function(){saveInputs();updateVis();});};"+
   "</script></body></html>";
   return html;
