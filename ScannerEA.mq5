@@ -244,6 +244,7 @@ string BuildMatrixHtml(int defaultIndex)
   html+="table{border-collapse:collapse;}";
   html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
   html+="th:first-child{text-align:left;}";
+  html+="button.ps-action{display:block;margin-top:4px;width:100%;}";
   html+="th:first-child,td:first-child{position:sticky;left:0;background:black;z-index:2;}";
   // Shift timeframe and header rows up since there is no top scroll bar
   html+="tr.tf-row th{position:sticky;top:0;text-align:left;background:black;z-index:2;}";
@@ -403,7 +404,8 @@ string BuildSpreadSwapHtml()
   html+="table{border-collapse:collapse;}";
   html+="th,td{border:1px solid white;padding:4px;text-align:right;color:white;}";
   html+="th:first-child{text-align:left;}";
-   html+="</style></head><body><div class='wrapper'>";
+  html+="button.ps-action{display:block;margin-top:4px;width:100%;}";
+  html+="</style></head><body><div class='wrapper'>";
 
    // Spread table
    html+="<div class='table-container'><table>";
@@ -430,9 +432,9 @@ string BuildSpreadSwapHtml()
      }
   html+="</table></div>";
   html+="<div class='table-container'><table id='ps_result'><tr><th colspan='2'>Last Calculation</th></tr></table>";
-  html+="<button id='ps_download' onclick='downloadFiles()' style='display:none;margin-top:4px;'>Download Files</button>";
-  html+="<button id='ps_copy_webhook' onclick='copyWebhook()' style='display:none;margin-top:4px;'>Copy Webhook</button>";
-  html+="<button id='ps_copy_json' onclick='copyJson()' style='display:none;margin-top:4px;'>Copy JSON</button></div>";
+  html+="<button id='ps_download' class='ps-action' onclick='downloadFiles()' style='display:none;'>Download Files</button>";
+  html+="<button id='ps_copy_webhook' class='ps-action' onclick='copyWebhook()' style='display:none;'>Copy Webhook</button>";
+  html+="<button id='ps_copy_json' class='ps-action' onclick='copyJson()' style='display:none;'>Copy JSON</button></div>";
 
   // Position size calculator table
   string opts="";
@@ -488,7 +490,7 @@ string BuildSpreadSwapHtml()
   "function copyWebhook(){var url='https://app.signalstack.com/hook/kiwPq16apN3xpy5eMPDovH';navigator.clipboard.writeText(url);}"+
   "function copyJson(){if(lastJson)navigator.clipboard.writeText(lastJson);}"+
   "var lastTxt='';var lastJson='';"+
-  "function updateVis(){var b=el('broker_mode').value;el('tr_oanda_balance').style.display=(b=='oanda')?'table-row':'none';el('tr_commission').style.display=(b=='pepper')?'table-row':'none';el('ps_copy_webhook').style.display=(b=='oanda')?'inline':'none';el('ps_copy_json').style.display=(b=='oanda')?'inline':'none';var m=el('risk_mode').value;el('tr_fixed_risk').style.display=(m=='aud')?'table-row':'none';el('tr_risk_pct').style.display=(m=='pct')?'table-row':'none';}"+
+  "function updateVis(){var b=el('broker_mode').value;el('tr_oanda_balance').style.display=(b=='oanda')?'table-row':'none';el('tr_commission').style.display=(b=='pepper')?'table-row':'none';el('ps_copy_webhook').style.display=(b=='oanda')?'block':'none';el('ps_copy_json').style.display=(b=='oanda')?'block':'none';var m=el('risk_mode').value;el('tr_fixed_risk').style.display=(m=='aud')?'table-row':'none';el('tr_risk_pct').style.display=(m=='pct')?'table-row':'none';}"+
   "function downloadFiles(){var t=localStorage.getItem('ps_last_txt');if(!t)return;var ts=new Date().toISOString().replace(/[:T]/g,'-').split('.')[0];dl('PositionSizeOutput-'+ts+'.txt',t);}"+
   "function calcPosition(){var s=el('ps_symbol').value;var inf=symbolInfo[s];var price=inf.p;var digits=inf.d;"+
   "var pipSize=Math.pow(10,-digits+1);var pipVal=inf.tv*pipSize/inf.ts;"+
@@ -519,7 +521,7 @@ string BuildSpreadSwapHtml()
   "out+='Margin Needed: '+margin.toFixed(2)+'\\n';"+
   "lastTxt=out;lastJson='';"+
   "if(bro=='oanda'){var qty=Math.round(lot*100000);lastJson='{\\n \"symbol\": \"{{ticker}}\",\\n \"action\": \"'+(buy?'buy':'sell')+'\",\\n \"quantity\": '+qty+',\\n \"take_profit_price\": \"{{close}} '+(buy?'+':'-')+' '+(tpP*pipSize).toFixed(3)+'\",\\n \"stop_loss_price\": \"{{close}} '+(buy?'-':'+')+' '+(slPips*pipSize).toFixed(3)+'\"\\n}';}"+
-  "localStorage.setItem('ps_last_txt',lastTxt);localStorage.setItem('ps_last_json',lastJson);el('ps_download').style.display='inline';"+
+  "localStorage.setItem('ps_last_txt',lastTxt);localStorage.setItem('ps_last_json',lastJson);el('ps_download').style.display='block';"+
   "var r='<tr><th colspan=\"2\">Last Calculation</th></tr>';"+
   "r+='<tr><td>Lot Size</td><td>'+lot.toFixed(lotPrec)+'</td></tr>';"+
   "r+='<tr><td>Stop Loss</td><td>'+slDisp+'</td></tr>';"+
@@ -528,9 +530,9 @@ string BuildSpreadSwapHtml()
   "r+='<tr><td>Net Risk</td><td>'+netRisk.toFixed(2)+'</td></tr>';"+
   "if(bro=='pepper')r+='<tr><td>Commission</td><td>'+commiss.toFixed(2)+'</td></tr>';"+
   "r+='<tr><td>Net Profit</td><td>'+netReward.toFixed(2)+'</td></tr>';"+
-  "if(bro=='oanda'){el('ps_copy_webhook').style.display='inline';el('ps_copy_json').style.display='inline';}"+
+  "if(bro=='oanda'){el('ps_copy_webhook').style.display='block';el('ps_copy_json').style.display='block';}"+
   "document.getElementById('ps_result').innerHTML=r;localStorage.setItem('ps_result',r);saveInputs();updateVis();}"+
-  "window.onload=function(){loadInputs();updateVis();var r=localStorage.getItem('ps_result');if(r)el('ps_result').innerHTML=r;if(localStorage.getItem('ps_last_txt'))el('ps_download').style.display='inline';var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);var ins=document.querySelectorAll('#ps_form input,#ps_form select');for(var i=0;i<ins.length;i++)ins[i].addEventListener('change',function(){saveInputs();updateVis();});};"+
+  "window.onload=function(){loadInputs();updateVis();var r=localStorage.getItem('ps_result');if(r)el('ps_result').innerHTML=r;if(localStorage.getItem('ps_last_txt'))el('ps_download').style.display='block';var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);var ins=document.querySelectorAll('#ps_form input,#ps_form select');for(var i=0;i<ins.length;i++)ins[i].addEventListener('change',function(){saveInputs();updateVis();});};"+
   "</script></body></html>";
   return html;
  }
