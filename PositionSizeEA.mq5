@@ -5,7 +5,6 @@
 #property copyright "2024"
 #property version   "1.00"
 #property strict
-#property script_show_inputs
 
 #include <Arrays/ArrayString.mqh>
 
