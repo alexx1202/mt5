@@ -124,7 +124,7 @@ string BuildPositionSizeHtml()
    "var slUnit=el('sl_unit').value;var slVal=parseFloat(el('sl_value').value);"+
    "var slPips=(slUnit=='pips')?slVal:slVal*inf.pt/pipSize;var bro=el('broker_mode').value;"+
    "var volStep=parseFloat(el('volume_step').value);var comm=parseFloat(el('commission').value);"+
-   "if(bro=='oanda'){if(comm==7)comm=0;volStep=0.00001;}else{volStep=0.01;}"+
+   "if(bro=='oanda'){if(comm==7)comm=0;}else{volStep=0.01;}"+
    "var bal=accBal;if(bro=='oanda'){var ob=parseFloat(el('oanda_balance').value);if(ob>0)bal=ob;}"+
    "var riskMode=el('risk_mode').value;var riskAmt=(riskMode=='aud')?parseFloat(el('fixed_risk').value):bal*parseFloat(el('risk_pct').value)/100;"+
    "if(riskAmt<=0)return;var lotRaw=riskAmt/(slPips*pipVal+comm);"+
