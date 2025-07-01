@@ -322,7 +322,7 @@ void OnStart()
    if(BrokerMode == BROKER_OANDA)
    {
       string action = isBuy ? "buy" : "sell";
-      int qty       = (int)MathRound(lotSize * 100000.0);
+      int qty       = (int)MathRound(lotSize * contractSize);
       string json   = "{\n";
       json += " \"symbol\": \"{{ticker}}\",\n";
       json += StringFormat(" \"action\": \"%s\",\n", action);
