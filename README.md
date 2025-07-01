@@ -16,3 +16,15 @@ This repository contains various MetaTrader 5 scripts and expert advisors.
 2. Attach the expert to any chart in MetaTrader 5.
 3. Keep the terminal running so the EA can check the time and close positions automatically.
 
+
+## Position Size EA
+
+`PositionSizeEA.mq5` opens a simple browser page showing a Pepperstone-specific position size calculator. It no longer supports OANDA trades.
+
+### Usage
+1. Copy `PositionSizeEA.mq5` to your **MQL5/Experts** folder and compile it.
+2. Attach the EA to any chart. It will open a browser window with the calculator.
+
+## OANDA Position Size Script
+
+`oanda_position_size.py` replicates the old OANDA calculation in Python. Run it from the command line and provide the necessary parameters described in the `--help` message.
