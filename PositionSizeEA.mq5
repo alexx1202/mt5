@@ -86,8 +86,7 @@ string BuildPositionSizeHtml()
 
    html+="<div class='table-container'><table id='ps_result'><tr><th colspan='2'>Last Calculation</th></tr></table>";
    html+="<button id='ps_download' class='ps-action' onclick='downloadFiles()' style='display:none;'>Download Files</button>";
-   html+="<button id='ps_copy_webhook' class='ps-action' onclick='copyWebhook()' style='display:none;'>Copy Webhook</button>";
-   html+="<button id='ps_copy_json' class='ps-action' onclick='copyJson()' style='display:none;'>Copy JSON</button></div>";
+   html+="</div>";
 
    html+="<div class='table-container'><table id='ps_form'>";
    html+="<tr><th colspan='2'>Position Size Calc</th></tr>";
@@ -97,12 +96,10 @@ string BuildPositionSizeHtml()
    html+="<tr id='tr_risk_pct'><td>Risk %</td><td><input id='risk_pct' type='number' value='1'/></td></tr>";
    html+="<tr><td>SL Unit</td><td><select id='sl_unit'><option value='pips'>Pips</option><option value='points'>Points</option></select></td></tr>";
    html+="<tr><td>SL Value</td><td><input id='sl_value' type='number' value='20'/></td></tr>";
-   html+="<tr><td>Broker</td><td><select id='broker_mode' onchange='updateVis()'><option value='pepper'>Pepperstone</option><option value='oanda'>OANDA</option></select></td></tr>";
+   // Broker is fixed to Pepperstone
    html+="<tr><td>RR Ratio</td><td><input id='rr_ratio' type='number' value='2'/></td></tr>";
    html+="<tr><td>Side</td><td><select id='order_side'><option value='buy'>Buy</option><option value='sell'>Sell</option></select></td></tr>";
-   html+="<tr id='tr_oanda_balance'><td>OANDA Balance</td><td><input id='oanda_balance' type='number' value='0'/></td></tr>";
    html+="<tr id='tr_commission'><td>Commission/Lot</td><td><input id='commission' type='number' value='7'/></td></tr>";
-   html+="<tr><td>Volume Step</td><td><input id='volume_step' type='number' value='0.01' step='0.00001'/></td></tr>";
    html+="<tr><td>Min Net Profit</td><td><input id='min_net' type='number' value='20'/></td></tr>";
    html+="<tr><td colspan='2' style='text-align:center;'><button onclick='calcPosition()'>Calculate</button></td></tr>";
    html+="</table></div>";
@@ -110,22 +107,19 @@ string BuildPositionSizeHtml()
    html+="</div><script>"+symInfo+
    "function el(id){return document.getElementById(id);}"+
    "var accBal="+DoubleToString(accBal,2)+";var freeMarg="+DoubleToString(freeMargin,2)+";"+
-   "function saveInputs(){var o={symbol:el('ps_symbol').value,risk_mode:el('risk_mode').value,fixed_risk:el('fixed_risk').value,risk_pct:el('risk_pct').value,sl_unit:el('sl_unit').value,sl_value:el('sl_value').value,broker_mode:el('broker_mode').value,rr_ratio:el('rr_ratio').value,order_side:el('order_side').value,oanda_balance:el('oanda_balance').value,commission:el('commission').value,volume_step:el('volume_step').value,min_net:el('min_net').value};localStorage.setItem('ps_inputs',JSON.stringify(o));}"+
+   "function saveInputs(){var o={symbol:el('ps_symbol').value,risk_mode:el('risk_mode').value,fixed_risk:el('fixed_risk').value,risk_pct:el('risk_pct').value,sl_unit:el('sl_unit').value,sl_value:el('sl_value').value,rr_ratio:el('rr_ratio').value,order_side:el('order_side').value,commission:el('commission').value,min_net:el('min_net').value};localStorage.setItem('ps_inputs',JSON.stringify(o));}"+
    "function loadInputs(){var j=localStorage.getItem('ps_inputs');if(!j)return;try{var o=JSON.parse(j);for(var k in o){var e=el(k);if(e)e.value=o[k];}}catch(e){} }"+
    "function getLev(sym){sym=sym.toUpperCase();if(sym.includes('USD')&&(sym.includes('EUR')||sym.includes('GBP')||sym.includes('AUD')||sym.includes('NZD')||sym.includes('CAD')||sym.includes('CHF')||sym.includes('JPY')))return 30;if(sym.length==6||sym.length==7)return 20;if(sym.includes('XAU')||sym.includes('US500')||sym.includes('NAS')||sym.includes('UK')||sym.includes('GER'))return 20;if(sym.includes('XAG')||sym.includes('WTI')||sym.includes('BRENT'))return 10;if(sym.includes('BTC')||sym.includes('ETH')||sym.includes('LTC')||sym.includes('XRP'))return 2;return 5;}"+
    "function dl(name,text){var b=new Blob([text]);var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href);}"+
-   "function copyWebhook(){var url='https://app.signalstack.com/hook/kiwPq16apN3xpy5eMPDovH';navigator.clipboard.writeText(url);}"+
-   "function copyJson(){if(lastJson)navigator.clipboard.writeText(lastJson);}"+
-   "var lastTxt='';var lastJson='';"+
-   "function updateVis(){var b=el('broker_mode').value;el('tr_oanda_balance').style.display=(b=='oanda')?'table-row':'none';el('tr_commission').style.display=(b=='pepper')?'table-row':'none';el('ps_copy_webhook').style.display=(b=='oanda')?'block':'none';el('ps_copy_json').style.display=(b=='oanda')?'block':'none';var m=el('risk_mode').value;el('tr_fixed_risk').style.display=(m=='aud')?'table-row':'none';el('tr_risk_pct').style.display=(m=='pct')?'table-row':'none';}"+
+   "var lastTxt='';"+
+   "function updateVis(){var m=el('risk_mode').value;el('tr_fixed_risk').style.display=(m=='aud')?'table-row':'none';el('tr_risk_pct').style.display=(m=='pct')?'table-row':'none';}"+
    "function downloadFiles(){var t=localStorage.getItem('ps_last_txt');if(!t)return;var ts=new Date().toISOString().replace(/[:T]/g,'-').split('.')[0];dl('PositionSizeOutput-'+ts+'.txt',t);}"+
    "function calcPosition(){var s=el('ps_symbol').value;var inf=symbolInfo[s];var price=inf.p;var digits=inf.d;"+
    "var pipSize=Math.pow(10,-digits+1);var pipVal=inf.tv*pipSize/inf.ts;"+
    "var slUnit=el('sl_unit').value;var slVal=parseFloat(el('sl_value').value);"+
-   "var slPips=(slUnit=='pips')?slVal:slVal*inf.pt/pipSize;var bro=el('broker_mode').value;"+
-   "var volStep=parseFloat(el('volume_step').value);var comm=parseFloat(el('commission').value);"+
-   "if(bro=='oanda'){if(comm==7)comm=0;}else{volStep=0.01;}"+
-   "var bal=accBal;if(bro=='oanda'){var ob=parseFloat(el('oanda_balance').value);if(ob>0)bal=ob;}"+
+   "var slPips=(slUnit=='pips')?slVal:slVal*inf.pt/pipSize;var bro='pepper';"+
+   "var volStep=0.01;var comm=parseFloat(el('commission').value);"+
+   "var bal=accBal;"+
    "var riskMode=el('risk_mode').value;var riskAmt=(riskMode=='aud')?parseFloat(el('fixed_risk').value):bal*parseFloat(el('risk_pct').value)/100;"+
    "if(riskAmt<=0)return;var lotRaw=riskAmt/(slPips*pipVal+comm);"+
    "var lot=Math.ceil(lotRaw/volStep)*volStep;var lotPrec=Math.round(Math.log10(1/volStep));lot=parseFloat(lot.toFixed(lotPrec));"+
@@ -146,18 +140,16 @@ string BuildPositionSizeHtml()
    "out+='Expected Net Profit at TP: AUD'+netReward.toFixed(2)+'\\n';out+='Minimum Net Profit Target: AUD'+minNet.toFixed(2)+'\\n';"+
    "var lev=getLev(s);var contract=inf.cs;var notion=lot*contract*price;var margin=notion/lev;"+
    "out+='Margin Needed: '+margin.toFixed(2)+'\\n';"+
-   "lastTxt=out;lastJson='';"+
-   "if(bro=='oanda'){var qty=parseFloat(lot.toFixed(lotPrec));lastJson='{\\n \"symbol\": \"{{ticker}}\",\\n \"action\": \"'+(buy?'buy':'sell')+'\",\\n \"quantity\": '+qty+',\\n \"take_profit_price\": \"{{close}} '+(buy?'+':'-')+' '+(tpP*pipSize).toFixed(3)+'\",\\n \"stop_loss_price\": \"{{close}} '+(buy?'-':'+')+' '+(slPips*pipSize).toFixed(3)+'\"\\n}';}"+
-   "localStorage.setItem('ps_last_txt',lastTxt);localStorage.setItem('ps_last_json',lastJson);el('ps_download').style.display='block';"+
+   "lastTxt=out;"+
+   "localStorage.setItem('ps_last_txt',lastTxt);el('ps_download').style.display='block';"+
    "var r='<tr><th colspan=\"2\">Last Calculation</th></tr>';"+
    "r+='<tr><td>Lot Size</td><td>'+lot.toFixed(lotPrec)+'</td></tr>';"+
    "r+='<tr><td>Stop Loss</td><td>'+slDisp+'</td></tr>';"+
    "r+='<tr><td>Take Profit</td><td>'+tpDisp+'</td></tr>';"+
    "r+='<tr><td>Margin</td><td>'+margin.toFixed(2)+'</td></tr>';"+
    "r+='<tr><td>Net Risk</td><td>'+netRisk.toFixed(2)+'</td></tr>';"+
-   "if(bro=='pepper')r+='<tr><td>Commission</td><td>'+commiss.toFixed(2)+'</td></tr>';"+
+   "r+='<tr><td>Commission</td><td>'+commiss.toFixed(2)+'</td></tr>';"+
    "r+='<tr><td>Net Profit</td><td>'+netReward.toFixed(2)+'</td></tr>';"+
-   "if(bro=='oanda'){el('ps_copy_webhook').style.display='block';el('ps_copy_json').style.display='block';}"+
    "document.getElementById('ps_result').innerHTML=r;localStorage.setItem('ps_result',r);saveInputs();updateVis();}"+
    "window.onload=function(){loadInputs();updateVis();var r=localStorage.getItem('ps_result');if(r)el('ps_result').innerHTML=r;if(localStorage.getItem('ps_last_txt'))el('ps_download').style.display='block';var ins=document.querySelectorAll('#ps_form input,#ps_form select');for(var i=0;i<ins.length;i++){ins[i].addEventListener('input',function(){saveInputs();updateVis();});ins[i].addEventListener('change',function(){saveInputs();updateVis();});}window.addEventListener('beforeunload',saveInputs);};"+
    "</script></body></html>";
