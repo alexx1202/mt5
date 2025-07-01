@@ -17,10 +17,8 @@ int MessageBoxW(int hWnd,string text,string caption,int type);
 #import
 
 CArrayString symbols;
-input int   RefreshSeconds = 60;
 input bool  ShowPopup      = true;
 
-datetime nextUpdate=0;
 bool pageOpened=false;
 
 int OnInit()
@@ -31,7 +29,6 @@ int OnInit()
       Print("No symbols in Market Watch.");
       return(INIT_FAILED);
      }
-   nextUpdate=TimeCurrent()+RefreshSeconds;
    if(ShowPopup)
       ShowPopup();
    return(INIT_SUCCEEDED);
@@ -39,16 +36,6 @@ int OnInit()
 
 void OnDeinit(const int reason)
   {
-  }
-
-void OnTick()
-  {
-   if(TimeCurrent()>=nextUpdate)
-     {
-      if(ShowPopup)
-         ShowPopup();
-      nextUpdate=TimeCurrent()+RefreshSeconds;
-     }
   }
 
 int GetWatchlistSymbols(CArrayString &list)
@@ -87,7 +74,7 @@ string BuildPositionSizeHtml()
    symInfo+=";";
 
    string html="<html><head><meta charset='UTF-8'>";
-   html+=StringFormat("<script>var refreshTimer=setTimeout(function(){location.reload();},%d000);function stopRefresh(){clearTimeout(refreshTimer);}</script>",RefreshSeconds);
+   // No auto-refresh
    html+="<style>";
    html+="body{font-family:monospace;background:black;color:white;margin:0;}";
    html+="div.wrapper{display:flex;gap:20px;flex-wrap:wrap;}";
@@ -173,7 +160,7 @@ string BuildPositionSizeHtml()
    "r+='<tr><td>Net Profit</td><td>'+netReward.toFixed(2)+'</td></tr>';"+
    "if(bro=='oanda'){el('ps_copy_webhook').style.display='block';el('ps_copy_json').style.display='block';}"+
    "document.getElementById('ps_result').innerHTML=r;localStorage.setItem('ps_result',r);saveInputs();updateVis();}"+
-   "window.onload=function(){loadInputs();updateVis();var r=localStorage.getItem('ps_result');if(r)el('ps_result').innerHTML=r;if(localStorage.getItem('ps_last_txt'))el('ps_download').style.display='block';var ins=document.querySelectorAll('#ps_form input,#ps_form select');for(var i=0;i<ins.length;i++){ins[i].addEventListener('input',function(){stopRefresh();saveInputs();updateVis();});ins[i].addEventListener('change',function(){stopRefresh();saveInputs();updateVis();});}window.addEventListener('beforeunload',saveInputs);};"+
+   "window.onload=function(){loadInputs();updateVis();var r=localStorage.getItem('ps_result');if(r)el('ps_result').innerHTML=r;if(localStorage.getItem('ps_last_txt'))el('ps_download').style.display='block';var ins=document.querySelectorAll('#ps_form input,#ps_form select');for(var i=0;i<ins.length;i++){ins[i].addEventListener('input',function(){saveInputs();updateVis();});ins[i].addEventListener('change',function(){saveInputs();updateVis();});}window.addEventListener('beforeunload',saveInputs);};"+
    "</script></body></html>";
    return html;
   }
