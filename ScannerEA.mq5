@@ -532,7 +532,7 @@ string BuildSpreadSwapHtml()
   "r+='<tr><td>Net Profit</td><td>'+netReward.toFixed(2)+'</td></tr>';"+
   "if(bro=='oanda'){el('ps_copy_webhook').style.display='block';el('ps_copy_json').style.display='block';}"+
   "document.getElementById('ps_result').innerHTML=r;localStorage.setItem('ps_result',r);saveInputs();updateVis();}"+
-  "window.onload=function(){loadInputs();updateVis();var r=localStorage.getItem('ps_result');if(r)el('ps_result').innerHTML=r;if(localStorage.getItem('ps_last_txt'))el('ps_download').style.display='block';var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);var ins=document.querySelectorAll('#ps_form input,#ps_form select');for(var i=0;i<ins.length;i++){ins[i].addEventListener('input',function(){saveInputs();updateVis();});ins[i].addEventListener('change',function(){saveInputs();updateVis();});}};"+
+  "window.onload=function(){loadInputs();updateVis();var r=localStorage.getItem('ps_result');if(r)el('ps_result').innerHTML=r;if(localStorage.getItem('ps_last_txt'))el('ps_download').style.display='block';var h=location.hash.substring(1);if(h=='')h='"+TFNames[defaultIndex]+"';showTF(h);var ins=document.querySelectorAll('#ps_form input,#ps_form select');for(var i=0;i<ins.length;i++){ins[i].addEventListener('input',function(){saveInputs();updateVis();});ins[i].addEventListener('change',function(){saveInputs();updateVis();});}window.addEventListener('beforeunload',saveInputs);};"+
   "</script></body></html>";
   return html;
  }
