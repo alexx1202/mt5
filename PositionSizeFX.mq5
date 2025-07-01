@@ -322,11 +322,11 @@ void OnStart()
    if(BrokerMode == BROKER_OANDA)
    {
       string action = isBuy ? "buy" : "sell";
-      int qty       = (int)MathRound(lotSize * 100000.0);
+      double qty       = lotSize * contractSize;
       string json   = "{\n";
       json += " \"symbol\": \"{{ticker}}\",\n";
       json += StringFormat(" \"action\": \"%s\",\n", action);
-      json += StringFormat(" \"quantity\": %d,\n", qty);
+      json += StringFormat(" \"quantity\": %.5f,\n", qty);
       json += StringFormat(" \"take_profit_price\": \"{{close}} %s %.3f\",\n", isBuy?"+":"-", tpPips * pipSize);
       json += StringFormat(" \"stop_loss_price\": \"{{close}} %s %.3f\"\n", isBuy?"-":"+", StopLossPips * pipSize);
       json += "}\n\nWEBHOOK (OANDA):\nhttps://app.signalstack.com/hook/kiwPq16apN3xpy5eMPDovH\n";

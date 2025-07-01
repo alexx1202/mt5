@@ -148,7 +148,7 @@ string BuildPositionSizeHtml()
    "var lev=getLev(s);var contract=inf.cs;var notion=lot*contract*price;var margin=notion/lev;"+
    "out+='Margin Needed: '+margin.toFixed(2)+'\\n';"+
    "lastTxt=out;lastJson='';"+
-   "if(bro=='oanda'){var qty=Math.round(lot*100000);lastJson='{\\n \"symbol\": \"{{ticker}}\",\\n \"action\": \"'+(buy?'buy':'sell')+'\",\\n \"quantity\": '+qty+',\\n \"take_profit_price\": \"{{close}} '+(buy?'+':'-')+' '+(tpP*pipSize).toFixed(3)+'\",\\n \"stop_loss_price\": \"{{close}} '+(buy?'-':'+')+' '+(slPips*pipSize).toFixed(3)+'\"\\n}';}"+
+   "if(bro=='oanda'){var qty=(lot*inf.cs).toFixed(5);lastJson='{\\n \"symbol\": \"{{ticker}}\",\\n \"action\": \"'+(buy?'buy':'sell')+'\",\\n \"quantity\": '+qty+',\\n \"take_profit_price\": \"{{close}} '+(buy?'+':'-')+' '+(tpP*pipSize).toFixed(3)+'\",\\n \"stop_loss_price\": \"{{close}} '+(buy?'-':'+')+' '+(slPips*pipSize).toFixed(3)+'\"\\n}';}"+
    "localStorage.setItem('ps_last_txt',lastTxt);localStorage.setItem('ps_last_json',lastJson);el('ps_download').style.display='block';"+
    "var r='<tr><th colspan=\"2\">Last Calculation</th></tr>';"+
    "r+='<tr><td>Lot Size</td><td>'+lot.toFixed(lotPrec)+'</td></tr>';"+
