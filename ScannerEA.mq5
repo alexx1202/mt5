@@ -28,7 +28,7 @@ int MessageBoxW(int hWnd,string text,string caption,int type);
 // Removed dialog window and label grid from chart display
 CArrayString symbols;                // list of symbols to display
 input int   RefreshSeconds = 60;     // update interval
-input bool  ShowPopup      = true;   // show popup window
+input bool  ShowPopupWindow = true;  // show popup window
 
 // Restrict selectable timeframes to commonly used periods
 enum CorrelPeriod
@@ -78,7 +78,7 @@ int OnInit()
 
    // old chart-based dialog removed
    nextUpdate = TimeCurrent()+RefreshSeconds;
-   if(ShowPopup)
+   if(ShowPopupWindow)
       ShowPopup();
    return(INIT_SUCCEEDED);
   }
@@ -100,7 +100,7 @@ void OnTick()
   {
    if(TimeCurrent()>=nextUpdate)
      {
-      if(ShowPopup)
+      if(ShowPopupWindow)
          ShowPopup();
       nextUpdate = TimeCurrent()+RefreshSeconds;
      }
@@ -427,10 +427,11 @@ string BuildSpreadSwapHtml()
       string colShort = (swapShort<0)?"red":"green";
       html+=StringFormat("<tr><td>%s</td><td style='color:%s'>%0.2f</td><td style='color:%s'>%0.2f</td></tr>",
                         sym,colLong,swapLong,colShort,swapShort);
-  html+="</table></div>";
-  html+="</div></body></html>";
-  return html;
- }
+     }
+   html+="</table></div>";
+   html+="</div></body></html>";
+   return html;
+  }
 
 //+------------------------------------------------------------------+
 //| Generate an HTML table and open it in the default browser         |
