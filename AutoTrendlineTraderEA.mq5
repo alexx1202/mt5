@@ -28,6 +28,7 @@ enum ENUM_PS_ASSET_CLASS
 
 // INPUTS
 input string          TrendlineName   = "EntryLine";         // Trendline object name
+input string          CancelLineName  = "ExitLine";          // Optional exit/cancel line name
 input ENUM_ORDER_TYPE TradeType       = ORDER_TYPE_BUY;       // BUY or SELL
 input ENUM_RISK_MODE  RiskMode        = RISK_FIXED_PERCENT;   // Risk mode
 input double          FixedRiskAUD    = 50.0;                 // Fixed risk amount
@@ -39,6 +40,9 @@ input double          ATRMultiplier   = 1.5;                  // ATR multiplier
 input ENUM_TARGET_MODE TargetMode     = TARGET_FIXED_PERCENT; // TP mode
 input double          TargetFixedAUD  = 20.0;                 // Fixed AUD TP or percent
 input double          CommissionPerLot= 7.0;                  // Commission per lot (AUD)
+input int             TimeOffsetHours = 0;                    // Hours to add to terminal time
+input int             BlockStartHour  = 5;                    // Block trading from this hour
+input int             BlockEndHour    = 9;                    // Block trading until this hour
 
 //+------------------------------------------------------------------+
 int OnInit()
@@ -52,6 +56,16 @@ int OnInit()
   if(StopLossPoints <= 0 && !UseATRStop)
     {
      Print("Error: StopLossPoints must be greater than zero.");
+     return(INIT_PARAMETERS_INCORRECT);
+    }
+  if(BlockStartHour<0 || BlockStartHour>23 || BlockEndHour<0 || BlockEndHour>23)
+    {
+     Print("Error: Block hours must be between 0 and 23.");
+     return(INIT_PARAMETERS_INCORRECT);
+    }
+  if(TimeOffsetHours<-24 || TimeOffsetHours>24)
+    {
+     Print("Error: TimeOffsetHours must be between -24 and 24.");
      return(INIT_PARAMETERS_INCORRECT);
     }
 
@@ -159,8 +173,76 @@ void LogTrade(string type,double entryPrice,double execPrice,double stopPrice,do
       FileWriteString(handle,line);
       FileClose(handle);
      }
-   else
-      Print("Failed to write log file: ",GetLastError());
+  else
+     Print("Failed to write log file: ",GetLastError());
+  }
+
+// helper: return terminal local time adjusted by offset
+datetime AdjustedLocalTime()
+  {
+   return(TimeLocal() + TimeOffsetHours*3600);
+  }
+
+// helper: check if current adjusted time is within blocked hours
+bool IsBlockedTrading()
+  {
+   datetime t=AdjustedLocalTime();
+   MqlDateTime tm; TimeToStruct(t,tm);
+   if(BlockStartHour==BlockEndHour)
+      return(false);
+   if(BlockStartHour<BlockEndHour)
+      return(tm.hour>=BlockStartHour && tm.hour<BlockEndHour);
+   return(tm.hour>=BlockStartHour || tm.hour<BlockEndHour);
+  }
+
+// helper: close open position if present
+void CloseBlockedPosition()
+  {
+   if(PositionSelect(_Symbol))
+     {
+      ulong ticket=PositionGetTicket(0);
+      if(trade.PositionClose(ticket))
+         Print("Position closed due to blocked hours");
+      else
+         Print("Failed to close position: ",trade.ResultRetcodeDescription());
+     }
+  }
+
+// helper: close all positions and cancel pending orders
+void CloseAllTrades()
+  {
+   for(int i=PositionsTotal()-1;i>=0;i--)
+     {
+      ulong ticket=PositionGetTicket(i);
+      if(trade.PositionClose(ticket))
+         Print("Closed position ",ticket," due to cancel line");
+     }
+
+   for(int j=OrdersTotal()-1;j>=0;j--)
+     {
+      ulong ticket=OrderGetTicket(j);
+      if(trade.OrderDelete(ticket))
+         Print("Deleted order ",ticket," due to cancel line");
+     }
+  }
+
+// helper: check if a trendline was touched between two price samples
+bool TrendlineTouched(string name,double prevAsk,double prevBid,double currAsk,double currBid)
+  {
+   if(ObjectFind(0,name)<0)
+      return(false);
+   datetime t1=(datetime)ObjectGetInteger(0,name,OBJPROP_TIME,0);
+   datetime t2=(datetime)ObjectGetInteger(0,name,OBJPROP_TIME,1);
+   if(t1==t2)
+      return(false);
+   double p1=ObjectGetDouble(0,name,OBJPROP_PRICE,0);
+   double p2=ObjectGetDouble(0,name,OBJPROP_PRICE,1);
+
+   datetime now=TimeCurrent();
+   double price=p1+(p2-p1)*(double)(now-t1)/(double)(t2-t1);
+   double low=MathMin(MathMin(prevAsk,prevBid),MathMin(currAsk,currBid));
+   double high=MathMax(MathMax(prevAsk,prevBid),MathMax(currAsk,currBid));
+   return(price>=low && price<=high);
   }
 
 //+------------------------------------------------------------------+
@@ -169,10 +251,34 @@ void OnTick()
   static bool  detected = false;
   static bool  warnedAuto = false;
   static bool  deactivated = false;
+  static bool  cancelDetected = false;
   static double lastAsk = 0.0, lastBid = 0.0;
 
    double currAsk = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
    double currBid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double prevAsk = lastAsk;
+   double prevBid = lastBid;
+   lastAsk = currAsk;
+   lastBid = currBid;
+
+   if(IsBlockedTrading())
+     {
+      CloseBlockedPosition();
+      return;
+     }
+
+   // handle cancel line
+   if(CancelLineName!="" && TrendlineTouched(CancelLineName,prevAsk,prevBid,currAsk,currBid))
+     {
+      if(!cancelDetected)
+        {
+         Print("Cancel line touched. Closing trades and orders.");
+         CloseAllTrades();
+         cancelDetected=true;
+        }
+     }
+   else
+      cancelDetected=false;
 
    // Only one position at a time
    if(PositionSelect(_Symbol))
@@ -190,14 +296,12 @@ void OnTick()
       return;
 
    // Confirm detection once
-   if(!detected)
-     {
-      detected = true;
-      Print("Detected trendline '" + TrendlineName + "'. Monitoring for touches.");
-      lastAsk = currAsk;
-      lastBid = currBid;
-      return;
-     }
+     if(!detected)
+       {
+        detected = true;
+        Print("Detected trendline '" + TrendlineName + "'. Monitoring for touches.");
+        return;
+       }
 
    // Retrieve endpoints safely
    ResetLastError();
@@ -235,21 +339,18 @@ void OnTick()
    bool doTrade=false;
    if(TradeType==ORDER_TYPE_BUY)
      {
-      double minPrice=MathMin(lastAsk,currAsk);
-      double maxPrice=MathMax(lastAsk,currAsk);
+      double minPrice=MathMin(prevAsk,currAsk);
+      double maxPrice=MathMax(prevAsk,currAsk);
       if(priceOnLine>=minPrice && priceOnLine<=maxPrice)
          doTrade=true;
      }
    else
      {
-      double minPrice=MathMin(lastBid,currBid);
-      double maxPrice=MathMax(lastBid,currBid);
+      double minPrice=MathMin(prevBid,currBid);
+      double maxPrice=MathMax(prevBid,currBid);
       if(priceOnLine>=minPrice && priceOnLine<=maxPrice)
          doTrade=true;
      }
-
-   lastAsk = currAsk;
-   lastBid = currBid;
 
    if(!doTrade)
       return;
