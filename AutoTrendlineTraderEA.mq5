@@ -43,6 +43,10 @@ input double          CommissionPerLot= 7.0;                  // Commission per 
 input int             TimeOffsetHours = 0;                    // Hours to add to terminal time
 input int             BlockStartHour  = 5;                    // Block trading from this hour
 input int             BlockEndHour    = 9;                    // Block trading until this hour
+input int             ServerHoursBehind = 7;                  // MT5 server hours behind local
+
+int  gBlockStartSrv = 0;
+int  gBlockEndSrv   = 0;
 
 //+------------------------------------------------------------------+
 int OnInit()
@@ -68,6 +72,15 @@ int OnInit()
      Print("Error: TimeOffsetHours must be between -24 and 24.");
      return(INIT_PARAMETERS_INCORRECT);
     }
+  if(ServerHoursBehind<-23 || ServerHoursBehind>23)
+    {
+     Print("Error: ServerHoursBehind must be between -23 and 23.");
+     return(INIT_PARAMETERS_INCORRECT);
+    }
+
+  gBlockStartSrv = NormalizeHour(BlockStartHour - ServerHoursBehind);
+  gBlockEndSrv   = NormalizeHour(BlockEndHour   - ServerHoursBehind);
+  PrintFormat("Block hours %02d-%02d local -> %02d-%02d server",BlockStartHour,BlockEndHour,gBlockStartSrv,gBlockEndSrv);
 
   // prepare trade log file
   int logHandle = FileOpen(gLogFile, FILE_READ|FILE_WRITE|FILE_TXT|FILE_ANSI);
@@ -177,22 +190,24 @@ void LogTrade(string type,double entryPrice,double execPrice,double stopPrice,do
      Print("Failed to write log file: ",GetLastError());
   }
 
-// helper: return terminal local time adjusted by offset
-datetime AdjustedLocalTime()
+// helper: normalize hour to 0..23
+int NormalizeHour(int h)
   {
-   return(TimeLocal() + TimeOffsetHours*3600);
+   while(h<0)  h+=24;
+   while(h>=24) h-=24;
+   return(h);
   }
 
-// helper: check if current adjusted time is within blocked hours
+// helper: check if current server time is within blocked hours
 bool IsBlockedTrading()
   {
-   datetime t=AdjustedLocalTime();
+   datetime t=TimeCurrent();
    MqlDateTime tm; TimeToStruct(t,tm);
-   if(BlockStartHour==BlockEndHour)
+   if(gBlockStartSrv==gBlockEndSrv)
       return(false);
-   if(BlockStartHour<BlockEndHour)
-      return(tm.hour>=BlockStartHour && tm.hour<BlockEndHour);
-   return(tm.hour>=BlockStartHour || tm.hour<BlockEndHour);
+   if(gBlockStartSrv<gBlockEndSrv)
+      return(tm.hour>=gBlockStartSrv && tm.hour<gBlockEndSrv);
+   return(tm.hour>=gBlockStartSrv || tm.hour<gBlockEndSrv);
   }
 
 // helper: close open position if present
