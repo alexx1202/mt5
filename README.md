@@ -28,3 +28,14 @@ This repository contains various MetaTrader 5 scripts and expert advisors.
 ## OANDA Position Size Script
 
 `oanda_position_size.py` replicates the old OANDA calculation in Python. Run it from the command line and provide the necessary parameters described in the `--help` message.
+
+## Auto Trendline Trader EA
+
+`AutoTrendlineTraderEA.mq5` executes trades when a user-drawn trendline is touched. It calculates position size based on a fixed risk amount or risk percentage and now factors in commission when determining the take‑profit level. This ensures that the configured target amount is achieved **after** commissions are deducted.
+
+### Usage
+1. Copy `AutoTrendlineTraderEA.mq5` to your **MQL5/Experts** folder and compile it.
+2. Draw a trendline named `EntryLine` on any chart (change `TrendlineName` input if needed).
+3. Set `TargetFixedAUD` to the net profit you want, e.g. `20.0` for $20.
+4. Adjust `CommissionPerLot` for your broker's round‑turn commission.
+5. When price touches the trendline, the EA will open a trade sized so that reaching the take profit yields your desired net amount.

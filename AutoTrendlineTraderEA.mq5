@@ -1,8 +1,8 @@
 //+------------------------------------------------------------------+
-//|   Auto Trendline Trader + Position Sizer EA (Improved v4.1)     |
+//|   Auto Trendline Trader + Position Sizer EA (Improved v4.2)     |
 //+------------------------------------------------------------------+
 #property copyright "2024"
-#property version   "4.1"
+#property version   "4.2"
 #property strict
 
 #include <Trade\Trade.mqh>
@@ -398,7 +398,10 @@ void OnTick()
    // into account. without dividing by volume the TP would be calculated as
    // if we traded exactly 1 lot and would give a much smaller real profit
    // when trading less.
-   double tpPoints = tpAmt / (tickValue * volume);
+   // add commission cost so that net profit after commission matches target
+   double commissionCost = CommissionPerLot * volume;
+   double grossTarget = tpAmt + commissionCost;
+   double tpPoints = grossTarget / (tickValue * volume);
    double takeProfit = (TradeType == ORDER_TYPE_BUY)
                        ? entryPrice + tpPoints * _Point
                        : entryPrice - tpPoints * _Point;
