@@ -322,6 +322,23 @@ void LogError(string msg)
       FileWrite(errHandle,line);
   }
 
+// helper to get ATR value of a given shift
+double GetATR(int period,int shift)
+  {
+   double buf[];
+   int handle=iATR(_Symbol,_Period,period);
+   if(handle==INVALID_HANDLE)
+      return 0.0;
+   if(CopyBuffer(handle,0,shift,1,buf)<=0)
+     {
+      IndicatorRelease(handle);
+      return 0.0;
+     }
+   double value=buf[0];
+   IndicatorRelease(handle);
+   return value;
+  }
+
 // determine if US Daylight Saving Time is active for a given local time
 bool IsUSDST(datetime local)
   {
@@ -332,14 +349,17 @@ bool IsUSDST(datetime local)
    MqlDateTime march={0};
    march.year=dt.year; march.mon=3; march.day=1; march.hour=7; // 07:00 UTC
    datetime start=StructToTime(march);
-   int wday=TimeDayOfWeek(start);
+   MqlDateTime tmp;
+   TimeToStruct(start,tmp);
+   int wday=tmp.day_of_week;
    start+=((7-wday)%7)*86400; // first Sunday
    start+=7*86400;            // second Sunday
 
    MqlDateTime nov={0};
    nov.year=dt.year; nov.mon=11; nov.day=1; nov.hour=6; // 06:00 UTC
    datetime end=StructToTime(nov);
-   wday=TimeDayOfWeek(end);
+   TimeToStruct(end,tmp);
+   wday=tmp.day_of_week;
    end+=((7-wday)%7)*86400;   // first Sunday
 
    return (utc>=start && utc<end);
@@ -456,10 +476,14 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                         const MqlTradeRequest &request,
                         const MqlTradeResult &result)
   {
-   if(trans.type==TRADE_TRANSACTION_DEAL_ADD && trans.entry==DEAL_ENTRY_OUT)
+   if(trans.type==TRADE_TRANSACTION_DEAL_ADD)
      {
-      double profit=trans.profit;
-      if(profit>=0){wins++; sumWin+=profit;} else {losses++; sumLoss+=-profit;}
+      long entry=HistoryDealGetInteger(trans.deal,DEAL_ENTRY);
+      if(entry==DEAL_ENTRY_OUT)
+        {
+         double profit=HistoryDealGetDouble(trans.deal,DEAL_PROFIT);
+         if(profit>=0){wins++; sumWin+=profit;} else {losses++; sumLoss+=-profit;}
+        }
      }
   }
 
@@ -512,7 +536,7 @@ void OnTick()
       return; // ignore first trade opportunity
      }
 
-   double atr=iATR(_Symbol,_Period,ATRPeriod,1);
+   double atr=GetATR(ATRPeriod,1);
    if(atr<=0)
      {
       LogError("ATR calculation failed");
