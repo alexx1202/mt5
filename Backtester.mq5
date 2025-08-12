@@ -13,6 +13,7 @@
 
 input double RiskPercent = 1.0;   // percent of equity to risk (1%)
 input int    ATRPeriod   = 14;    // ATR period for stop
+input double ATRStopMult = 1.0;   // ATR stop-loss multiplier
 
 CTrade trade;                     // trading object
 bool   allowTrading = true;       // switch off when equity too low
@@ -535,7 +536,7 @@ void OnTick()
    double minLot   = SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN);
    double lotStep  = SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP);
 
-   double riskPerLot = atr/tickSize*tickVal;
+   double riskPerLot = atr*ATRStopMult/tickSize*tickVal;
    double idealLots  = riskAmt/riskPerLot;
 
    if(idealLots<minLot)
@@ -557,8 +558,8 @@ void OnTick()
 
   double price=iOpen(_Symbol,_Period,0); // next candle open
   double sl,tp;
-  if(isBuy){sl=price-atr; tp=price+atr*2.0;}
-  else     {sl=price+atr; tp=price-atr*2.0;}
+  if(isBuy){sl=price-atr*ATRStopMult; tp=price+atr*ATRStopMult*2.0;}
+  else     {sl=price+atr*ATRStopMult; tp=price-atr*ATRStopMult*2.0;}
 
    double margin;
    ENUM_ORDER_TYPE orderType = isBuy ? ORDER_TYPE_BUY_LIMIT : ORDER_TYPE_SELL_LIMIT;
