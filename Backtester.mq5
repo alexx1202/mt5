@@ -1,9 +1,9 @@
 //+------------------------------------------------------------------+
-//| Trend Close EA                                                   |
-//| Places trades at the close of the previous candle.               |
+//| Backtester                                                      |
+//| Places trades with limit orders at the next candle's open.       |
 //| Buys after a bullish candle and sells after a bearish one.       |
-//| Direction is not auto-detected; user toggles trade/wait modes.   |
-//| Risk is based on ~1% of equity with ATR stop and 2R target.       |
+//| EA always trades; no manual trade/wait toggle.                   |
+//| Risk is based on ~1% of equity with ATR stop and 2R target.      |
 //+------------------------------------------------------------------+
 #property copyright "2024"
 #property version   "1.0"
@@ -16,8 +16,6 @@ input int    ATRPeriod   = 14;    // ATR period for stop
 
 CTrade trade;                     // trading object
 bool   allowTrading = true;       // switch off when equity too low
-bool   tradeMode    = true;       // true = trade mode, false = wait mode
-string modeButton   = "ModeButton"; // chart button name
 int    wins=0, losses=0;          // trade statistics
 double sumWin=0, sumLoss=0;       // win/loss totals
 
@@ -26,6 +24,7 @@ int fileHandle = INVALID_HANDLE;  // csv file handle
 int errHandle  = INVALID_HANDLE;  // log file handle
 double initialBalance = 0;       // for risk of ruin
 bool   skipFirst    = true;      // skip first trade signal
+ulong  pendingTicket = 0;        // ticket of pending order
 
 datetime newsTimes[] = {
    D'2020.01.03 23:30',
@@ -411,14 +410,14 @@ int OnInit()
    initialBalance = AccountInfoDouble(ACCOUNT_BALANCE);
 
    // open error log file
-  errHandle = FileOpen("TrendCloseErrors.log",FILE_READ|FILE_WRITE|FILE_ANSI|FILE_TXT);
+  errHandle = FileOpen("BacktesterErrors.log",FILE_READ|FILE_WRITE|FILE_ANSI|FILE_TXT|FILE_COMMON);
   if(errHandle!=INVALID_HANDLE)
      FileSeek(errHandle,0,SEEK_END);
   else
      Print("Cannot open error log file");
 
    // open CSV file and write header if new
-  fileHandle = FileOpen("TrendCloseTrades.csv",FILE_READ|FILE_WRITE|FILE_CSV|FILE_ANSI);
+  fileHandle = FileOpen("BacktesterTrades.csv",FILE_READ|FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON);
   if(fileHandle!=INVALID_HANDLE)
     {
      FileSeek(fileHandle,0,SEEK_END);
@@ -427,15 +426,6 @@ int OnInit()
     }
   else
      LogError("Cannot open CSV file");
-
-   // create button to toggle trade/wait mode
-   ObjectCreate(0,modeButton,OBJ_BUTTON,0,0,0);
-   ObjectSetInteger(0,modeButton,OBJPROP_CORNER,CORNER_RIGHT_UPPER);
-   ObjectSetInteger(0,modeButton,OBJPROP_XDISTANCE,10);
-   ObjectSetInteger(0,modeButton,OBJPROP_YDISTANCE,10);
-   ObjectSetInteger(0,modeButton,OBJPROP_XSIZE,100);
-   ObjectSetInteger(0,modeButton,OBJPROP_YSIZE,20);
-   ObjectSetString(0,modeButton,OBJPROP_TEXT,"Trade Mode ON");
 
   return(INIT_SUCCEEDED);
   }
@@ -449,8 +439,6 @@ void OnDeinit(const int reason)
       FileClose(fileHandle);
    if(errHandle!=INVALID_HANDLE)
       FileClose(errHandle);
-
-   ObjectDelete(0,modeButton);
 
    int total=wins+losses;
    if(total>0)
@@ -488,18 +476,6 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
   }
 
 //+------------------------------------------------------------------+
-//| Toggle trade/wait mode via chart button                           |
-//+------------------------------------------------------------------+
-void OnChartEvent(const int id,const long &lparam,const double &dparam,const string &sparam)
-  {
-   if(id==CHARTEVENT_OBJECT_CLICK && sparam==modeButton)
-     {
-      tradeMode=!tradeMode;
-      ObjectSetString(0,modeButton,OBJPROP_TEXT,tradeMode?"Trade Mode ON":"Wait Mode");
-     }
-  }
-
-//+------------------------------------------------------------------+
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
 void OnTick()
@@ -512,11 +488,19 @@ void OnTick()
       return;
      }
 
-   if(!allowTrading || !tradeMode) return;
+   if(!allowTrading) return;
 
    datetime cur=iTime(_Symbol,_Period,0);
    if(cur==lastBarTime) return;   // wait for new bar
    lastBarTime=cur;
+
+   // cancel leftover pending order if not filled on prior bar
+   if(pendingTicket!=0)
+     {
+      if(OrderSelect(pendingTicket))
+         trade.OrderDelete(pendingTicket);
+      pendingTicket=0;
+     }
 
    if(!TradingHourAllowed(now))
       return;
@@ -525,10 +509,11 @@ void OnTick()
    double close1=iClose(_Symbol,_Period,1);
 
    if(PositionsTotal()>0) return;          // only one trade at a time
+   if(pendingTicket!=0) return;            // waiting for pending order
 
    if(close1==open1) return;               // ignore doji
 
-   ENUM_ORDER_TYPE type = (close1>open1) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+   bool isBuy = (close1>open1);
 
    if(skipFirst)
      {
@@ -570,13 +555,14 @@ void OnTick()
       riskPct=actualRisk/equity*100.0;
      }
 
-  double price=close1; // try to fill at previous close
+  double price=iOpen(_Symbol,_Period,0); // next candle open
   double sl,tp;
-  if(type==ORDER_TYPE_BUY){sl=price-atr; tp=price+atr*2.0;}
-  else                   {sl=price+atr; tp=price-atr*2.0;}
+  if(isBuy){sl=price-atr; tp=price+atr*2.0;}
+  else     {sl=price+atr; tp=price-atr*2.0;}
 
    double margin;
-   if(!OrderCalcMargin(type,_Symbol,lots,price,margin))
+   ENUM_ORDER_TYPE orderType = isBuy ? ORDER_TYPE_BUY_LIMIT : ORDER_TYPE_SELL_LIMIT;
+   if(!OrderCalcMargin(orderType,_Symbol,lots,price,margin))
      {
       LogError("OrderCalcMargin failed");
       return;
@@ -589,33 +575,30 @@ void OnTick()
 
    MqlTradeRequest req; MqlTradeResult res;
    ZeroMemory(req); ZeroMemory(res);
-   req.action=TRADE_ACTION_DEAL;
+   req.action=TRADE_ACTION_PENDING;
    req.symbol=_Symbol;
    req.volume=lots;
-   req.type=type;
+   req.type=orderType;
    req.price=price;
    req.sl=sl;
    req.tp=tp;
-   req.deviation=10; // 1 pip
-   req.type_filling=ORDER_FILLING_IOC;
    req.type_time=ORDER_TIME_GTC;
-   req.comment="TrendCloseEA";
+   req.comment="Backtester";
 
    if(!OrderSend(req,res) || res.retcode!=TRADE_RETCODE_DONE)
      {
       LogError(StringFormat("Order failed: retcode=%d comment=%s",res.retcode,res.comment));
       return;
      }
-
-   if(MathAbs(res.price-price) > 10*_Point)
-      LogError(StringFormat("Fill deviated >1 pip: requested %.5f got %.5f",price,res.price));
+   else
+      pendingTicket=res.order;
 
    double stopPct = MathAbs(price-sl)/price*100.0;
    double targPct = MathAbs(tp-price)/price*100.0;
    if(fileHandle!=INVALID_HANDLE)
       FileWrite(fileHandle,
                 TimeToString(TimeLocal(),TIME_DATE|TIME_SECONDS),
-                (type==ORDER_TYPE_BUY?"BUY":"SELL"),
+                (isBuy?"BUY":"SELL"),
                 DoubleToString(lots,2),
                 DoubleToString(price,_Digits),
                 DoubleToString(sl,_Digits),
@@ -625,6 +608,6 @@ void OnTick()
 
    PrintFormat("%s %s %.2f lots @%.5f SL %.5f TP %.5f Risk %.2f%%",
                TimeToString(TimeLocal(),TIME_DATE|TIME_SECONDS),
-               (type==ORDER_TYPE_BUY?"BUY":"SELL"),lots,price,sl,tp,riskPct);
+               (isBuy?"BUY":"SELL"),lots,price,sl,tp,riskPct);
   }
 //+------------------------------------------------------------------+
