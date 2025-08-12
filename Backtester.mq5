@@ -546,14 +546,24 @@ void OnTick()
       return;
      }
 
-   double lots = MathCeil(idealLots/lotStep)*lotStep; // round up
+   // round down so the calculated risk never exceeds the requested 1%
+   double lots = MathFloor(idealLots/lotStep)*lotStep;
    double actualRisk=riskPerLot*lots;
    double riskPct=actualRisk/equity*100.0;
-   if(riskPct<RiskPercent)
+
+   // reduce lot size further if rounding still exceeds the risk limit
+   while(riskPct>RiskPercent && lots-lotStep>=minLot)
      {
-      lots+=lotStep;
+      lots-=lotStep;
       actualRisk=riskPerLot*lots;
       riskPct=actualRisk/equity*100.0;
+     }
+
+   // skip trades that do not meet the exact 1% risk requirement
+   if(riskPct>RiskPercent || riskPct<RiskPercent)
+     {
+      LogError("Cannot size position to exactly 1% risk. Trade skipped.");
+      return;
      }
 
   double price=iOpen(_Symbol,_Period,0); // next candle open
@@ -607,8 +617,9 @@ void OnTick()
                 DoubleToString(stopPct,2),
                 DoubleToString(targPct,2));
 
-   PrintFormat("%s %s %.2f lots @%.5f SL %.5f TP %.5f Risk %.2f%%",
+   PrintFormat("%s %s %.2f lots @%.5f SL %.5f TP %.5f Risk %.2f%% (%.2f %s)",
                TimeToString(TimeLocal(),TIME_DATE|TIME_SECONDS),
-               (isBuy?"BUY":"SELL"),lots,price,sl,tp,riskPct);
+               (isBuy?"BUY":"SELL"),lots,price,sl,tp,riskPct,actualRisk,
+               AccountInfoString(ACCOUNT_CURRENCY));
   }
 //+------------------------------------------------------------------+
