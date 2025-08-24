@@ -434,8 +434,16 @@ int OnInit()
      }
    else
      {
+      // Add the fast moving average to the chart and color it.
       ChartIndicatorAdd(0,0,maFastHandle);
-      ChartIndicatorSetInteger(0,0,maFastHandle,INDICATOR_COLOR_INDEX,0,clrPlum);
+      // ChartIndicatorSetInteger was used previously, but this function is not
+      // available in some builds of MetaTrader.  Instead, the color can be set
+      // directly on the indicator handle using PlotIndexSetInteger.
+      //
+      // PlotIndexSetInteger( handle, plot_index, property_id, value )
+      // For the Moving Average there is only one plotted line, so the
+      // plot_index is 0.  PLOT_LINE_COLOR changes the colour of that line.
+      PlotIndexSetInteger(maFastHandle,0,PLOT_LINE_COLOR,clrPlum);
      }
 
    maSlowHandle = iMA(_Symbol,_Period,SlowEMA,0,MODE_EMA,PRICE_CLOSE);
@@ -446,8 +454,10 @@ int OnInit()
      }
    else
      {
+      // Add the slow moving average to the chart and colour it using the same
+      // approach as above.
       ChartIndicatorAdd(0,0,maSlowHandle);
-      ChartIndicatorSetInteger(0,0,maSlowHandle,INDICATOR_COLOR_INDEX,0,clrAqua);
+      PlotIndexSetInteger(maSlowHandle,0,PLOT_LINE_COLOR,clrAqua);
      }
 
    // open error log file
@@ -481,16 +491,23 @@ void OnDeinit(const int reason)
   if(errHandle!=INVALID_HANDLE)
      FileClose(errHandle);
 
-   if(maFastHandle!=INVALID_HANDLE)
-     {
-      ChartIndicatorDelete(0,0,maFastHandle);
-      IndicatorRelease(maFastHandle);
-     }
-   if(maSlowHandle!=INVALID_HANDLE)
-     {
-      ChartIndicatorDelete(0,0,maSlowHandle);
-      IndicatorRelease(maSlowHandle);
-     }
+    if(maFastHandle!=INVALID_HANDLE)
+      {
+       // Remove the indicator from the chart using its short name and then
+       // release the handle.  ChartIndicatorDelete requires the short name,
+       // which we obtain via IndicatorGetString.
+       string fastName;
+       if(IndicatorGetString(maFastHandle,INDICATOR_SHORTNAME,fastName))
+          ChartIndicatorDelete(0,0,fastName);
+       IndicatorRelease(maFastHandle);
+      }
+    if(maSlowHandle!=INVALID_HANDLE)
+      {
+       string slowName;
+       if(IndicatorGetString(maSlowHandle,INDICATOR_SHORTNAME,slowName))
+          ChartIndicatorDelete(0,0,slowName);
+       IndicatorRelease(maSlowHandle);
+      }
 
    int total=wins+losses;
    if(total>0)
