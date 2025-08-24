@@ -17,6 +17,7 @@ CiMA    maSlow;
 input group "Live trading options";
 input int    FastEMA     = 9;      // fast EMA period
 input int    SlowEMA     = 20;     // slow EMA period
+input bool   BounceFromFast = true; // true = bounce from FastEMA, false = from SlowEMA
 input double NearPct     = 0.5;    // allowed distance from EMA (%)
 input double RiskAUD     = 10.0;   // risk per trade in AUD
 input int    StopPips    = 15;     // stop loss in pips
@@ -381,11 +382,11 @@ void ExecuteTrade()
    double slow = maSlow.Main(0);
    if(fast <= 0 || fast == DBL_MAX || slow <= 0 || slow == DBL_MAX)
       return;
-
+   double bounce = BounceFromFast ? fast : slow;
    if(fast > slow)
-      CheckBuy(fast);
+      CheckBuy(bounce);
    else if(fast < slow)
-      CheckSell(fast);
+      CheckSell(bounce);
   }
 
 //+------------------------------------------------------------------+
