@@ -27,8 +27,8 @@ bool   allowTrading = true;       // switch off when equity too low
 int    wins=0, losses=0;          // trade statistics
 double sumWin=0, sumLoss=0;       // win/loss totals
 
-CiMA   maFast;
-CiMA   maSlow;
+int    maFastHandle = INVALID_HANDLE;
+int    maSlowHandle = INVALID_HANDLE;
 
 datetime lastBarTime = 0;        // track new bar
 int fileHandle = INVALID_HANDLE;  // csv file handle
@@ -426,19 +426,29 @@ int OnInit()
       return(INIT_PARAMETERS_INCORRECT);
      }
 
-   if(!maFast.Create(_Symbol,_Period,FastEMA,0,MODE_EMA,PRICE_CLOSE))
+   maFastHandle = iMA(_Symbol,_Period,FastEMA,0,MODE_EMA,PRICE_CLOSE);
+   if(maFastHandle==INVALID_HANDLE)
      {
       LogError("Failed to create fast EMA");
       return(INIT_FAILED);
      }
-   if(!maSlow.Create(_Symbol,_Period,SlowEMA,0,MODE_EMA,PRICE_CLOSE))
+   else
+     {
+      ChartIndicatorAdd(0,0,maFastHandle);
+      ChartIndicatorSetInteger(0,0,maFastHandle,INDICATOR_COLOR_INDEX,0,clrPlum);
+     }
+
+   maSlowHandle = iMA(_Symbol,_Period,SlowEMA,0,MODE_EMA,PRICE_CLOSE);
+   if(maSlowHandle==INVALID_HANDLE)
      {
       LogError("Failed to create slow EMA");
       return(INIT_FAILED);
      }
-
-   maFast.Refresh();
-   maSlow.Refresh();
+   else
+     {
+      ChartIndicatorAdd(0,0,maSlowHandle);
+      ChartIndicatorSetInteger(0,0,maSlowHandle,INDICATOR_COLOR_INDEX,0,clrAqua);
+     }
 
    // open error log file
   errHandle = FileOpen("BacktesterErrors.log",FILE_READ|FILE_WRITE|FILE_ANSI|FILE_TXT|FILE_COMMON);
@@ -466,10 +476,21 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
-   if(fileHandle!=INVALID_HANDLE)
-      FileClose(fileHandle);
-   if(errHandle!=INVALID_HANDLE)
-      FileClose(errHandle);
+  if(fileHandle!=INVALID_HANDLE)
+     FileClose(fileHandle);
+  if(errHandle!=INVALID_HANDLE)
+     FileClose(errHandle);
+
+   if(maFastHandle!=INVALID_HANDLE)
+     {
+      ChartIndicatorDelete(0,0,maFastHandle);
+      IndicatorRelease(maFastHandle);
+     }
+   if(maSlowHandle!=INVALID_HANDLE)
+     {
+      ChartIndicatorDelete(0,0,maSlowHandle);
+      IndicatorRelease(maSlowHandle);
+     }
 
    int total=wins+losses;
    if(total>0)
@@ -558,15 +579,19 @@ void OnTick()
 
   if(close1==open1) return;               // ignore doji
 
-  maFast.Refresh();
-  maSlow.Refresh();
-  double fast = maFast.Main(0);
-  double slow = maSlow.Main(0);
+  double fastArr[2];
+  double slowArr[1];
+  if(CopyBuffer(maFastHandle,0,0,2,fastArr)<=0)
+     return;
+  if(CopyBuffer(maSlowHandle,0,0,1,slowArr)<=0)
+     return;
+  double fast = fastArr[0];
+  double prevEMA = fastArr[1];
+  double slow = slowArr[0];
   if(fast<=0 || slow<=0 || fast==DBL_MAX || slow==DBL_MAX)
      return;
 
   double threshold = fast * (NearPct/100.0);
-  double prevEMA   = maFast.Main(1);
 
   bool isBuy  = (close1<open1) && fast>slow && price>=fast && price<=fast+threshold && close1>prevEMA;
   bool isSell = (close1>open1) && fast<slow && price<=fast && price>=fast-threshold && close1<prevEMA;
