@@ -428,7 +428,9 @@ int OnInit()
 
    // Remove any indicators that may already be on the chart (e.g. Bollinger Bands)
    // so the EA draws only its own moving averages.
-   ChartIndicatorsDelete(0,0);
+   int total=ChartIndicatorsTotal(0,0);    // count how many indicators are on the main chart window
+   for(int i=total-1;i>=0;i--)             // loop backward through the indicators
+      ChartIndicatorDelete(0,0,i);         // remove each indicator
 
    maFastHandle = iMA(_Symbol,_Period,FastEMA,0,MODE_EMA,PRICE_CLOSE);
    if(maFastHandle==INVALID_HANDLE)
