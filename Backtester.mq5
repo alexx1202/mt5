@@ -11,9 +11,10 @@
 
 #include <Trade/Trade.mqh>
 
-input double RiskPercent = 1.0;   // percent of equity to risk (1%)
-input int    ATRPeriod   = 14;    // ATR period for stop
-input double ATRStopMult = 1.0;   // ATR stop-loss multiplier
+input double RiskPercent   = 1.0;  // percent of equity to risk (1%)
+input double RiskTolerance = 0.01; // allowed risk deviation (%)
+input int    ATRPeriod     = 14;   // ATR period for stop
+input double ATRStopMult   = 1.0;  // ATR stop-loss multiplier
 
 CTrade trade;                     // trading object
 bool   allowTrading = true;       // switch off when equity too low
@@ -559,12 +560,12 @@ void OnTick()
       riskPct=actualRisk/equity*100.0;
      }
 
-   // skip trades that do not meet the exact 1% risk requirement
-   if(riskPct>RiskPercent || riskPct<RiskPercent)
-     {
-      LogError("Cannot size position to exactly 1% risk. Trade skipped.");
-      return;
-     }
+  // skip trades that fall outside the allowed risk range
+  if(MathAbs(riskPct - RiskPercent) > RiskTolerance)
+    {
+     LogError("Cannot size position within risk tolerance. Trade skipped.");
+     return;
+    }
 
   double price=iOpen(_Symbol,_Period,0); // next candle open
   double sl,tp;
