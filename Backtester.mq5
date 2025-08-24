@@ -1,7 +1,7 @@
 //+------------------------------------------------------------------+
 //| Backtester                                                      |
 //| Places trades with limit orders at the next candle's open.       |
-//| Buys after a bullish candle and sells after a bearish one.       |
+//| Buys after a bearish candle and sells after a bullish one.       |
 //| EA always trades; no manual trade/wait toggle.                   |
 //| Risk is based on ~1% of equity with ATR stop and 2R target.      |
 //+------------------------------------------------------------------+
@@ -515,7 +515,7 @@ void OnTick()
 
    if(close1==open1) return;               // ignore doji
 
-   bool isBuy = (close1>open1);
+   bool isBuy = (close1<open1);            // buy only after a bearish candle
 
    if(skipFirst)
      {
