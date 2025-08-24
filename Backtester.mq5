@@ -426,6 +426,10 @@ int OnInit()
       return(INIT_PARAMETERS_INCORRECT);
      }
 
+   // Remove any indicators that may already be on the chart (e.g. Bollinger Bands)
+   // so the EA draws only its own moving averages.
+   ChartIndicatorsDelete(0,0);
+
    maFastHandle = iMA(_Symbol,_Period,FastEMA,0,MODE_EMA,PRICE_CLOSE);
    if(maFastHandle==INVALID_HANDLE)
      {
@@ -434,16 +438,9 @@ int OnInit()
      }
    else
      {
-      // Add the fast moving average to the chart and color it.
-      ChartIndicatorAdd(0,0,maFastHandle);
-      // ChartIndicatorSetInteger was used previously, but this function is not
-      // available in some builds of MetaTrader.  Instead, the color can be set
-      // directly on the indicator handle using PlotIndexSetInteger.
-      //
-      // PlotIndexSetInteger( handle, plot_index, property_id, value )
-      // For the Moving Average there is only one plotted line, so the
-      // plot_index is 0.  PLOT_LINE_COLOR changes the colour of that line.
+      // Set the fast MA colour before adding it to the chart.
       PlotIndexSetInteger(maFastHandle,0,PLOT_LINE_COLOR,clrPlum);
+      ChartIndicatorAdd(0,0,maFastHandle);
      }
 
    maSlowHandle = iMA(_Symbol,_Period,SlowEMA,0,MODE_EMA,PRICE_CLOSE);
@@ -454,10 +451,9 @@ int OnInit()
      }
    else
      {
-      // Add the slow moving average to the chart and colour it using the same
-      // approach as above.
-      ChartIndicatorAdd(0,0,maSlowHandle);
+      // Set the slow MA colour before adding it to the chart.
       PlotIndexSetInteger(maSlowHandle,0,PLOT_LINE_COLOR,clrAqua);
+      ChartIndicatorAdd(0,0,maSlowHandle);
      }
 
    // open error log file
