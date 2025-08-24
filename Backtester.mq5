@@ -10,16 +10,23 @@
 #property strict
 
 #include <Trade/Trade.mqh>
+#include <Indicators/Trend.mqh>
 
 input double RiskPercent   = 1.0;  // percent of equity to risk (1%)
 input double RiskTolerance = 0.01; // allowed risk deviation (%)
 input int    ATRPeriod     = 14;   // ATR period for stop
 input double ATRStopMult   = 1.0;  // ATR stop-loss multiplier
+input int    FastEMA       = 9;    // fast EMA period
+input int    SlowEMA       = 20;   // slow EMA period
+input double NearPct       = 0.5;  // allowed distance from EMA (%)
 
 CTrade trade;                     // trading object
 bool   allowTrading = true;       // switch off when equity too low
 int    wins=0, losses=0;          // trade statistics
 double sumWin=0, sumLoss=0;       // win/loss totals
+
+CiMA   maFast;
+CiMA   maSlow;
 
 datetime lastBarTime = 0;        // track new bar
 int fileHandle = INVALID_HANDLE;  // csv file handle
@@ -411,6 +418,26 @@ int OnInit()
    lastBarTime    = iTime(_Symbol,_Period,0);
    initialBalance = AccountInfoDouble(ACCOUNT_BALANCE);
 
+   if(FastEMA<=0 || SlowEMA<=0)
+     {
+      LogError("EMA periods must be positive");
+      return(INIT_PARAMETERS_INCORRECT);
+     }
+
+   if(!maFast.Create(_Symbol,_Period,FastEMA,0,MODE_EMA,PRICE_CLOSE))
+     {
+      LogError("Failed to create fast EMA");
+      return(INIT_FAILED);
+     }
+   if(!maSlow.Create(_Symbol,_Period,SlowEMA,0,MODE_EMA,PRICE_CLOSE))
+     {
+      LogError("Failed to create slow EMA");
+      return(INIT_FAILED);
+     }
+
+   maFast.Refresh();
+   maSlow.Refresh();
+
    // open error log file
   errHandle = FileOpen("BacktesterErrors.log",FILE_READ|FILE_WRITE|FILE_ANSI|FILE_TXT|FILE_COMMON);
   if(errHandle!=INVALID_HANDLE)
@@ -507,20 +534,34 @@ void OnTick()
    if(!TradingHourAllowed(now))
       return;
 
-   double open1=iOpen(_Symbol,_Period,1);
-   double close1=iClose(_Symbol,_Period,1);
+  double open1=iOpen(_Symbol,_Period,1);
+  double close1=iClose(_Symbol,_Period,1);
+  double price=iOpen(_Symbol,_Period,0); // next candle open
 
-   if(PositionsTotal()>0) return;          // only one trade at a time
-   if(pendingTicket!=0) return;            // waiting for pending order
+  if(PositionsTotal()>0) return;          // only one trade at a time
+  if(pendingTicket!=0) return;            // waiting for pending order
 
-   if(close1==open1) return;               // ignore doji
+  if(close1==open1) return;               // ignore doji
 
-   bool isBuy = (close1<open1);            // buy only after a bearish candle
+  maFast.Refresh();
+  maSlow.Refresh();
+  double fast = maFast.Main(0);
+  double slow = maSlow.Main(0);
+  if(fast<=0 || slow<=0 || fast==DBL_MAX || slow==DBL_MAX)
+     return;
 
-   if(skipFirst)
-     {
-      skipFirst=false;
-      return; // ignore first trade opportunity
+  double threshold = fast * (NearPct/100.0);
+  double prevEMA   = maFast.Main(1);
+
+  bool isBuy  = (close1<open1) && fast>slow && price>=fast && price<=fast+threshold && close1>prevEMA;
+  bool isSell = (close1>open1) && fast<slow && price<=fast && price>=fast-threshold && close1<prevEMA;
+  if(!isBuy && !isSell)
+     return;
+
+  if(skipFirst)
+    {
+     skipFirst=false;
+     return; // ignore first trade opportunity
      }
 
    double atr=GetATR(ATRPeriod,1);
@@ -567,7 +608,6 @@ void OnTick()
      return;
     }
 
-  double price=iOpen(_Symbol,_Period,0); // next candle open
   double sl,tp;
   if(isBuy){sl=price-atr*ATRStopMult; tp=price+atr*ATRStopMult*2.0;}
   else     {sl=price+atr*ATRStopMult; tp=price-atr*ATRStopMult*2.0;}

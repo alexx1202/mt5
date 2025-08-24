@@ -11,11 +11,13 @@
 //--- trading objects
 CTrade  trade;
 CiMA    maFast;
+CiMA    maSlow;
 
 //--- live trading options
 input group "Live trading options";
 input int    FastEMA     = 9;      // fast EMA period
-input double NearPct     = 0.005;  // allowed distance from EMA
+input int    SlowEMA     = 20;     // slow EMA period
+input double NearPct     = 0.5;    // allowed distance from EMA (%)
 input double RiskAUD     = 10.0;   // risk per trade in AUD
 input int    StopPips    = 15;     // stop loss in pips
 input int    TakePips    = 30;     // take profit if RRRatio==0
@@ -82,21 +84,27 @@ int OnInit()
    currentSymbol = _Symbol;
 
    // validate inputs so they are sensible
-   if(FastEMA <= 0 || StopPips <= 0 || RRRatio <= 0 ||
+   if(FastEMA <= 0 || SlowEMA <= 0 || StopPips <= 0 || RRRatio <= 0 ||
       NearPct <= 0)
     {
       Print("Error: input values must be greater than zero.");
       return(INIT_PARAMETERS_INCORRECT);
      }
 
-   // create EMA indicator
+   // create EMA indicators
    if(!maFast.Create(currentSymbol, PERIOD_CURRENT, FastEMA, 0, MODE_EMA, PRICE_CLOSE))
      {
-      Print("Failed to create EMA. Error ", GetLastError());
+      Print("Failed to create fast EMA. Error ", GetLastError());
+      return(INIT_FAILED);
+     }
+   if(!maSlow.Create(currentSymbol, PERIOD_CURRENT, SlowEMA, 0, MODE_EMA, PRICE_CLOSE))
+     {
+      Print("Failed to create slow EMA. Error ", GetLastError());
       return(INIT_FAILED);
      }
 
   maFast.Refresh();
+  maSlow.Refresh();
   // use MagicNum input for unique identifier
   trade.SetExpertMagicNumber(MagicNum);
   trade.SetTypeFilling(ORDER_FILLING_FOK);
@@ -255,8 +263,8 @@ void CheckBuy(double ema)
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
    double threshold = ema * (NearPct / 100.0);
 
-   // ensure price is close enough to the EMA
-   if(ask < ema - threshold || ask > ema + threshold)
+   // ensure price is at or above the EMA and close enough
+   if(ask < ema || ask > ema + threshold)
       return;
 
    double prevClose = iClose(currentSymbol, PERIOD_CURRENT, 1);
@@ -301,8 +309,8 @@ void CheckSell(double ema)
    double ask = SymbolInfoDouble(currentSymbol, SYMBOL_ASK);
    double threshold = ema * (NearPct / 100.0);
 
-   // ensure price is close enough to the EMA
-   if(bid < ema - threshold || bid > ema + threshold)
+   // ensure price is at or below the EMA and close enough
+   if(bid > ema || bid < ema - threshold)
       return;
 
    double prevClose = iClose(currentSymbol, PERIOD_CURRENT, 1);
@@ -364,16 +372,20 @@ void ExecuteTrade()
      }
   if(PositionSelect(currentSymbol))
       return; // already have a position on this symbol
-   if(Bars(currentSymbol, PERIOD_CURRENT) < FastEMA)
-      return; // not enough bars to calculate EMA
+   if(Bars(currentSymbol, PERIOD_CURRENT) < MathMax(FastEMA, SlowEMA))
+      return; // not enough bars to calculate EMAs
 
    maFast.Refresh();
-   double ema = maFast.Main(0);
-   if(ema <= 0 || ema == DBL_MAX)
+   maSlow.Refresh();
+   double fast = maFast.Main(0);
+   double slow = maSlow.Main(0);
+   if(fast <= 0 || fast == DBL_MAX || slow <= 0 || slow == DBL_MAX)
       return;
 
-   CheckBuy(ema);
-   CheckSell(ema);
+   if(fast > slow)
+      CheckBuy(fast);
+   else if(fast < slow)
+      CheckSell(fast);
   }
 
 //+------------------------------------------------------------------+
