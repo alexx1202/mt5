@@ -20,6 +20,7 @@ input int    ATRPeriod     = 14;   // ATR period for stop
 input double ATRStopMult   = 1.0;  // ATR stop-loss multiplier
 input int    FastEMA       = 9;    // fast EMA period
 input int    SlowEMA       = 20;   // slow EMA period
+input bool   BounceFromFast = true; // true = bounce from FastEMA, false = from SlowEMA
 input double NearPct       = 0.5;  // allowed distance from EMA (%)
 
 CTrade trade;                     // trading object
@@ -430,7 +431,7 @@ int OnInit()
    // so the EA draws only its own moving averages.
    int total=ChartIndicatorsTotal(0,0);    // count how many indicators are on the main chart window
    for(int i=total-1;i>=0;i--)             // loop backward through the indicators
-      ChartIndicatorDelete(0,0,i);         // remove each indicator
+      ChartIndicatorDelete(0,0,ChartIndicatorName(0,0,i)); // remove each indicator by name
 
    maFastHandle = iMA(_Symbol,_Period,FastEMA,0,MODE_EMA,PRICE_CLOSE);
    if(maFastHandle==INVALID_HANDLE)
@@ -590,21 +591,22 @@ void OnTick()
   if(close1==open1) return;               // ignore doji
 
   double fastArr[2];
-  double slowArr[1];
+  double slowArr[2];
   if(CopyBuffer(maFastHandle,0,0,2,fastArr)<=0)
      return;
-  if(CopyBuffer(maSlowHandle,0,0,1,slowArr)<=0)
+  if(CopyBuffer(maSlowHandle,0,0,2,slowArr)<=0)
      return;
   double fast = fastArr[0];
-  double prevEMA = fastArr[1];
   double slow = slowArr[0];
   if(fast<=0 || slow<=0 || fast==DBL_MAX || slow==DBL_MAX)
      return;
 
-  double threshold = fast * (NearPct/100.0);
+  double bounce = BounceFromFast ? fast : slow;
+  double prevBounce = BounceFromFast ? fastArr[1] : slowArr[1];
+  double threshold = bounce * (NearPct/100.0);
 
-  bool isBuy  = (close1<open1) && fast>slow && price>=fast && price<=fast+threshold && close1>prevEMA;
-  bool isSell = (close1>open1) && fast<slow && price<=fast && price>=fast-threshold && close1<prevEMA;
+  bool isBuy  = (close1<open1) && fast>slow && price>=bounce && price<=bounce+threshold && close1>prevBounce;
+  bool isSell = (close1>open1) && fast<slow && price<=bounce && price>=bounce-threshold && close1<prevBounce;
   if(!isBuy && !isSell)
      return;
 
