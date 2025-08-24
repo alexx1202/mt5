@@ -3,7 +3,8 @@
 //| Places trades with limit orders at the next candle's open.       |
 //| Buys after a bearish candle and sells after a bullish one.       |
 //| EA always trades; no manual trade/wait toggle.                   |
-//| Risk is based on ~1% of equity with ATR stop and 2R target.      |
+//| Risk is based on a percent of equity or a fixed amount with      |
+//| an ATR stop and 2R target.                                       |
 //+------------------------------------------------------------------+
 #property copyright "2024"
 #property version   "1.0"
@@ -13,6 +14,7 @@
 #include <Indicators/Trend.mqh>
 
 input double RiskPercent   = 1.0;  // percent of equity to risk (1%)
+input double FixedRisk     = 0.0;  // fixed risk amount (0 = use percent)
 input double RiskTolerance = 0.01; // allowed risk deviation (%)
 input int    ATRPeriod     = 14;   // ATR period for stop
 input double ATRStopMult   = 1.0;  // ATR stop-loss multiplier
@@ -517,6 +519,20 @@ void OnTick()
       return;
      }
 
+   // close any open trade if floating loss exceeds configured risk
+   if(PositionsTotal()>0)
+     {
+      double equity=AccountInfoDouble(ACCOUNT_EQUITY);
+      double riskAmt=(FixedRisk>0 ? FixedRisk : equity*RiskPercent/100.0);
+      if(PositionSelect(_Symbol))
+        {
+         double profit=PositionGetDouble(POSITION_PROFIT);
+         if(profit<-riskAmt)
+            trade.PositionClose(_Symbol);
+        }
+      return; // do nothing else this tick when a trade exists
+     }
+
    if(!allowTrading) return;
 
    datetime cur=iTime(_Symbol,_Period,0);
@@ -538,7 +554,6 @@ void OnTick()
   double close1=iClose(_Symbol,_Period,1);
   double price=iOpen(_Symbol,_Period,0); // next candle open
 
-  if(PositionsTotal()>0) return;          // only one trade at a time
   if(pendingTicket!=0) return;            // waiting for pending order
 
   if(close1==open1) return;               // ignore doji
@@ -572,7 +587,7 @@ void OnTick()
      }
 
    double equity   = AccountInfoDouble(ACCOUNT_EQUITY);
-   double riskAmt  = equity*RiskPercent/100.0;
+   double riskAmt  = (FixedRisk>0 ? FixedRisk : equity*RiskPercent/100.0);
    double tickSize = SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE);
    double tickVal  = SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_VALUE);
    double minLot   = SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN);
@@ -583,29 +598,52 @@ void OnTick()
 
    if(idealLots<minLot)
      {
-      LogError("Equity too low for minimum lot with 1% risk. Trading stopped.");
+      LogError("Equity too low for minimum lot with specified risk. Trading stopped.");
       allowTrading=false;
       return;
      }
 
-   // round down so the calculated risk never exceeds the requested 1%
+   // round down so the calculated risk never exceeds the requested risk
    double lots = MathFloor(idealLots/lotStep)*lotStep;
    double actualRisk=riskPerLot*lots;
    double riskPct=actualRisk/equity*100.0;
 
    // reduce lot size further if rounding still exceeds the risk limit
-   while(riskPct>RiskPercent && lots-lotStep>=minLot)
+   if(FixedRisk>0)
      {
-      lots-=lotStep;
-      actualRisk=riskPerLot*lots;
-      riskPct=actualRisk/equity*100.0;
+      while(actualRisk>riskAmt && lots-lotStep>=minLot)
+        {
+         lots-=lotStep;
+         actualRisk=riskPerLot*lots;
+         riskPct=actualRisk/equity*100.0;
+        }
+     }
+   else
+     {
+      while(riskPct>RiskPercent && lots-lotStep>=minLot)
+        {
+         lots-=lotStep;
+         actualRisk=riskPerLot*lots;
+         riskPct=actualRisk/equity*100.0;
+        }
      }
 
   // skip trades that fall outside the allowed risk range
-  if(MathAbs(riskPct - RiskPercent) > RiskTolerance)
+  if(FixedRisk>0)
     {
-     LogError("Cannot size position within risk tolerance. Trade skipped.");
-     return;
+     if(MathAbs(actualRisk - riskAmt) > riskAmt*RiskTolerance/100.0)
+       {
+        LogError("Cannot size position within risk tolerance. Trade skipped.");
+        return;
+       }
+    }
+  else
+    {
+     if(MathAbs(riskPct - RiskPercent) > RiskTolerance)
+       {
+        LogError("Cannot size position within risk tolerance. Trade skipped.");
+        return;
+       }
     }
 
   double sl,tp;
