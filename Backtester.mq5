@@ -430,7 +430,7 @@ int OnInit()
    // so the EA draws only its own moving averages.
    int total=ChartIndicatorsTotal(0,0);    // count how many indicators are on the main chart window
    for(int i=total-1;i>=0;i--)             // loop backward through the indicators
-      ChartIndicatorDelete(0,0,i);         // remove each indicator
+      ChartIndicatorDelete(0,0,ChartIndicatorName(0,0,i)); // remove each indicator by name
 
    maFastHandle = iMA(_Symbol,_Period,FastEMA,0,MODE_EMA,PRICE_CLOSE);
    if(maFastHandle==INVALID_HANDLE)
