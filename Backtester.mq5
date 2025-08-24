@@ -493,20 +493,15 @@ void OnDeinit(const int reason)
 
     if(maFastHandle!=INVALID_HANDLE)
       {
-       // Remove the indicator from the chart using its short name and then
-       // release the handle.  ChartIndicatorDelete requires the short name,
-       // which we obtain via IndicatorGetString.
-       string fastName;
-       if(IndicatorGetString(maFastHandle,INDICATOR_SHORTNAME,fastName))
-          ChartIndicatorDelete(0,0,fastName);
+       // Release the indicator handle when done.
        IndicatorRelease(maFastHandle);
+       maFastHandle = INVALID_HANDLE;
       }
     if(maSlowHandle!=INVALID_HANDLE)
       {
-       string slowName;
-       if(IndicatorGetString(maSlowHandle,INDICATOR_SHORTNAME,slowName))
-          ChartIndicatorDelete(0,0,slowName);
+       // Release the indicator handle when done.
        IndicatorRelease(maSlowHandle);
+       maSlowHandle = INVALID_HANDLE;
       }
 
    int total=wins+losses;
